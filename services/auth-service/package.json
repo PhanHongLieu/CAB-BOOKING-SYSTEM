@@ -23,7 +23,9 @@
     "amqplib": "^0.10.3",
     "prom-client": "^15.1.0",
     "jaeger-client": "^3.19.0",
-    "opentracing": "^0.14.7"
+    "opentracing": "^0.14.7",
+    "swagger-ui-express": "^5.0.0",
+    "swagger-jsdoc": "^6.2.8"
   },
   "devDependencies": {
     "nodemon": "^3.0.2",

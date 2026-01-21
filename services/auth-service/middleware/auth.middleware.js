@@ -1,18 +1,18 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User.model');
-const { UnauthorizedError } = require('../../shared/errors');
+const { UnauthorizedError } = require('../../../shared/errors');
 
 exports.authenticate = async (req, res, next) => {
   try {
     const token = req.headers.authorization?.split(' ')[1];
-    
+
     if (!token) {
       throw new UnauthorizedError('Authentication token required');
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const user = await User.findById(decoded.userId);
-    
+
     if (!user || !user.isActive) {
       throw new UnauthorizedError('Invalid or expired token');
     }
@@ -22,7 +22,7 @@ exports.authenticate = async (req, res, next) => {
       email: user.email,
       role: user.role
     };
-    
+
     next();
   } catch (error) {
     if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
@@ -37,11 +37,11 @@ exports.authorize = (...roles) => {
     if (!req.user) {
       return next(new UnauthorizedError('Authentication required'));
     }
-    
+
     if (!roles.includes(req.user.role)) {
       return next(new UnauthorizedError('Insufficient permissions'));
     }
-    
+
     next();
   };
 };

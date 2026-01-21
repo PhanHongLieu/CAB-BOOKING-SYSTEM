@@ -12,6 +12,11 @@ const { tracingMiddleware } = require('../../shared/tracing');
 const authRoutes = require('./routes/auth.routes');
 const userRoutes = require('./routes/user.routes');
 
+// Swagger imports
+const swaggerUi = require('swagger-ui-express');
+const swaggerSpecs = require('./swagger');
+
+
 const app = express();
 const PORT = process.env.PORT || 3001;
 
@@ -51,6 +56,10 @@ app.get('/metrics', async (req, res) => {
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
+
+// Swagger Documentation
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs));
+
 
 // Error handler
 app.use(errorHandler);

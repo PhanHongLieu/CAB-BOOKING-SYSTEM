@@ -1,9 +1,9 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User.model');
-const { ValidationError, UnauthorizedError } = require('../../shared/errors');
-const logger = require('../../shared/logger');
-const { getEventBus } = require('../../shared/eventBus');
-const { recordEventPublished } = require('../../shared/metrics');
+const { ValidationError, UnauthorizedError } = require('../../../shared/errors');
+const logger = require('../../../shared/logger');
+const { getEventBus } = require('../../../shared/eventBus');
+const { recordEventPublished } = require('../../../shared/metrics');
 
 const generateTokens = (userId) => {
   const accessToken = jwt.sign(
@@ -11,13 +11,13 @@ const generateTokens = (userId) => {
     process.env.JWT_SECRET,
     { expiresIn: process.env.JWT_EXPIRES_IN || '24h' }
   );
-  
+
   const refreshToken = jwt.sign(
     { userId },
     process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET,
     { expiresIn: '7d' }
   );
-  
+
   return { accessToken, refreshToken };
 };
 
@@ -143,9 +143,8 @@ exports.refreshToken = async (req, res, next) => {
 
     // Verify refresh token
     const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET);
-    
     // Find user
-    const user = await User.findById(decoded.userId);
+    const user = await User.findById(decoded.userId).select('+refreshToken');
     if (!user || user.refreshToken !== refreshToken) {
       throw new UnauthorizedError('Invalid refresh token');
     }
@@ -186,14 +185,14 @@ exports.logout = async (req, res, next) => {
 exports.verifyToken = async (req, res, next) => {
   try {
     const token = req.headers.authorization?.split(' ')[1];
-    
+
     if (!token) {
       throw new UnauthorizedError('Token not provided');
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const user = await User.findById(decoded.userId).select('-password -refreshToken');
-    
+
     if (!user || !user.isActive) {
       throw new UnauthorizedError('Invalid token');
     }

@@ -1,11 +1,31 @@
 const express = require('express');
 const User = require('../models/User.model');
 const { authenticate, authorize } = require('../middleware/auth.middleware');
-const { NotFoundError } = require('../../shared/errors');
+const { NotFoundError } = require('../../../shared/errors');
 
 const router = express.Router();
 
-// Get current user profile
+/**
+ * @swagger
+ * /api/users/me:
+ *   get:
+ *     summary: Get current user profile
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: User profile
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   $ref: '#/components/schemas/User'
+ */
 router.get('/me', authenticate, async (req, res, next) => {
   try {
     const user = await User.findById(req.user.userId).select('-password -refreshToken');
