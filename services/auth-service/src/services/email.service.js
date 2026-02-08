@@ -11,13 +11,13 @@ const logger = require('../utils/logger.util');
 
 // Email configuration
 const emailConfig = {
-    host: process.env.SMTP_HOST || 'smtp.gmail.com',
-    port: parseInt(process.env.SMTP_PORT, 10) || 587,
-    secure: process.env.SMTP_SECURE === 'true',
-    auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-    },
+  host: process.env.SMTP_HOST || 'smtp.gmail.com',
+  port: parseInt(process.env.SMTP_PORT, 10) || 587,
+  secure: process.env.SMTP_SECURE === 'true',
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
 };
 
 const defaultFrom = process.env.EMAIL_FROM || 'noreply@cabsystem.com';
@@ -30,23 +30,23 @@ let transporter = null;
  * Initialize email transporter
  */
 const initializeTransporter = () => {
-    if (!emailConfig.auth.user || !emailConfig.auth.pass) {
-        logger.warn('Email service not configured - emails will be logged only');
-        return null;
+  if (!emailConfig.auth.user || !emailConfig.auth.pass) {
+    logger.warn('Email service not configured - emails will be logged only');
+    return null;
+  }
+
+  transporter = nodemailer.createTransport(emailConfig);
+
+  // Verify connection
+  transporter.verify((error) => {
+    if (error) {
+      logger.error('Email transporter verification failed:', error.message);
+    } else {
+      logger.info('Email transporter ready');
     }
+  });
 
-    transporter = nodemailer.createTransport(emailConfig);
-
-    // Verify connection
-    transporter.verify((error) => {
-        if (error) {
-            logger.error('Email transporter verification failed:', error.message);
-        } else {
-            logger.info('Email transporter ready');
-        }
-    });
-
-    return transporter;
+  return transporter;
 };
 
 /**
@@ -55,34 +55,43 @@ const initializeTransporter = () => {
  * @returns {Promise<Object>}
  */
 const sendEmail = async (options) => {
-    const { to, subject, html, text } = options;
+  const { to, subject, html, text } = options;
 
-    // If transporter not configured, log the email
-    if (!transporter) {
-        logger.info('📧 Email (not sent - no SMTP configured):', {
-            to,
-            subject,
-            preview: text ? text.substring(0, 100) : 'HTML only',
-        });
-        return { messageId: 'mock-' + Date.now(), mock: true };
+  // If transporter not configured, log the email
+  if (!transporter) {
+    logger.info('📧 Email (not sent - no SMTP configured):', {
+      to,
+      subject,
+      preview: text ? text.substring(0, 100) : 'HTML only',
+    });
+
+    // Extract link for easier testing
+    if (html) {
+      const linkMatch = html.match(/href="(https?:\/\/.*?)"/);
+      if (linkMatch && linkMatch[1]) {
+        logger.info(`🔗 [DEV] CLICK TO VERIFY: ${linkMatch[1]}`);
+      }
     }
 
-    try {
-        const mailOptions = {
-            from: options.from || defaultFrom,
-            to,
-            subject,
-            html,
-            text,
-        };
+    return { messageId: 'mock-' + Date.now(), mock: true };
+  }
 
-        const info = await transporter.sendMail(mailOptions);
-        logger.info(`Email sent: ${info.messageId} to ${to}`);
-        return info;
-    } catch (error) {
-        logger.error(`Failed to send email to ${to}:`, error.message);
-        throw error;
-    }
+  try {
+    const mailOptions = {
+      from: options.from || defaultFrom,
+      to,
+      subject,
+      html,
+      text,
+    };
+
+    const info = await transporter.sendMail(mailOptions);
+    logger.info(`Email sent: ${info.messageId} to ${to}`);
+    return info;
+  } catch (error) {
+    logger.error(`Failed to send email to ${to}:`, error.message);
+    throw error;
+  }
 };
 
 /**
@@ -91,9 +100,9 @@ const sendEmail = async (options) => {
  * @param {string} token - Verification token
  */
 const sendVerificationEmail = async (user, token) => {
-    const verificationUrl = `${frontendUrl}/verify-email?token=${token}`;
+  const verificationUrl = `${frontendUrl}/verify-email?token=${token}`;
 
-    const html = `
+  const html = `
     <!DOCTYPE html>
     <html>
     <head>
@@ -131,7 +140,7 @@ const sendVerificationEmail = async (user, token) => {
     </html>
   `;
 
-    const text = `
+  const text = `
     Hello ${user.firstName}!
     
     Thank you for registering with Cab Booking System.
@@ -144,12 +153,12 @@ const sendVerificationEmail = async (user, token) => {
     If you didn't create an account, please ignore this email.
   `;
 
-    await sendEmail({
-        to: user.email,
-        subject: 'Verify Your Email - Cab Booking System',
-        html,
-        text,
-    });
+  await sendEmail({
+    to: user.email,
+    subject: 'Verify Your Email - Cab Booking System',
+    html,
+    text,
+  });
 };
 
 /**
@@ -158,9 +167,9 @@ const sendVerificationEmail = async (user, token) => {
  * @param {string} token - Reset token
  */
 const sendPasswordResetEmail = async (user, token) => {
-    const resetUrl = `${frontendUrl}/reset-password?token=${token}`;
+  const resetUrl = `${frontendUrl}/reset-password?token=${token}`;
 
-    const html = `
+  const html = `
     <!DOCTYPE html>
     <html>
     <head>
@@ -205,7 +214,7 @@ const sendPasswordResetEmail = async (user, token) => {
     </html>
   `;
 
-    const text = `
+  const text = `
     Hello ${user.firstName}!
     
     We received a request to reset your password.
@@ -219,12 +228,12 @@ const sendPasswordResetEmail = async (user, token) => {
     Never share this link with anyone.
   `;
 
-    await sendEmail({
-        to: user.email,
-        subject: 'Password Reset Request - Cab Booking System',
-        html,
-        text,
-    });
+  await sendEmail({
+    to: user.email,
+    subject: 'Password Reset Request - Cab Booking System',
+    html,
+    text,
+  });
 };
 
 /**
@@ -232,7 +241,7 @@ const sendPasswordResetEmail = async (user, token) => {
  * @param {Object} user - User object
  */
 const sendPasswordChangedNotification = async (user) => {
-    const html = `
+  const html = `
     <!DOCTYPE html>
     <html>
     <head>
@@ -276,7 +285,7 @@ const sendPasswordChangedNotification = async (user) => {
     </html>
   `;
 
-    const text = `
+  const text = `
     Hello ${user.firstName}!
     
     Your password has been successfully changed on ${new Date().toLocaleString()}.
@@ -285,12 +294,12 @@ const sendPasswordChangedNotification = async (user) => {
     Please reset your password immediately and contact our support team.
   `;
 
-    await sendEmail({
-        to: user.email,
-        subject: 'Password Changed - Cab Booking System',
-        html,
-        text,
-    });
+  await sendEmail({
+    to: user.email,
+    subject: 'Password Changed - Cab Booking System',
+    html,
+    text,
+  });
 };
 
 /**
@@ -299,7 +308,7 @@ const sendPasswordChangedNotification = async (user) => {
  * @param {Date} unlockTime - When account will be unlocked
  */
 const sendAccountLockedNotification = async (user, unlockTime) => {
-    const html = `
+  const html = `
     <!DOCTYPE html>
     <html>
     <head>
@@ -340,7 +349,7 @@ const sendAccountLockedNotification = async (user, unlockTime) => {
     </html>
   `;
 
-    const text = `
+  const text = `
     Hello ${user.firstName}!
     
     Your account has been temporarily locked due to multiple failed login attempts.
@@ -351,12 +360,12 @@ const sendAccountLockedNotification = async (user, unlockTime) => {
     We recommend resetting your password and enabling two-factor authentication.
   `;
 
-    await sendEmail({
-        to: user.email,
-        subject: '⚠️ Account Locked - Cab Booking System',
-        html,
-        text,
-    });
+  await sendEmail({
+    to: user.email,
+    subject: '⚠️ Account Locked - Cab Booking System',
+    html,
+    text,
+  });
 };
 
 /**
@@ -364,7 +373,7 @@ const sendAccountLockedNotification = async (user, unlockTime) => {
  * @param {Object} user - User object
  */
 const sendWelcomeEmail = async (user) => {
-    const html = `
+  const html = `
     <!DOCTYPE html>
     <html>
     <head>
@@ -415,7 +424,7 @@ const sendWelcomeEmail = async (user) => {
     </html>
   `;
 
-    const text = `
+  const text = `
     Welcome to Cab Booking System, ${user.firstName}!
     
     Your email has been verified and your account is now active.
@@ -428,23 +437,23 @@ const sendWelcomeEmail = async (user) => {
     Visit ${frontendUrl}/dashboard to get started!
   `;
 
-    await sendEmail({
-        to: user.email,
-        subject: '🎉 Welcome to Cab Booking System!',
-        html,
-        text,
-    });
+  await sendEmail({
+    to: user.email,
+    subject: '🎉 Welcome to Cab Booking System!',
+    html,
+    text,
+  });
 };
 
 // Initialize transporter on module load
 initializeTransporter();
 
 module.exports = {
-    sendEmail,
-    sendVerificationEmail,
-    sendPasswordResetEmail,
-    sendPasswordChangedNotification,
-    sendAccountLockedNotification,
-    sendWelcomeEmail,
-    initializeTransporter,
+  sendEmail,
+  sendVerificationEmail,
+  sendPasswordResetEmail,
+  sendPasswordChangedNotification,
+  sendAccountLockedNotification,
+  sendWelcomeEmail,
+  initializeTransporter,
 };
