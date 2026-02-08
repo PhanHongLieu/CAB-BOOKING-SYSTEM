@@ -336,6 +336,169 @@ Authorization: Bearer <access_token>
 
 ---
 
+---
+
+## Two-Factor Authentication
+
+### GET /2fa/status
+
+🔒 **Requires Authentication**
+
+Check 2FA status for current user.
+
+**Headers**:
+```
+Authorization: Bearer <access_token>
+```
+
+**Response** (200 OK):
+```json
+{
+  "success": true,
+  "data": {
+    "enabled": false
+  }
+}
+```
+
+---
+
+### POST /2fa/setup
+
+🔒 **Requires Authentication**
+
+Generate secret key, QR code, and backup codes for 2FA setup.
+
+**Headers**:
+```
+Authorization: Bearer <access_token>
+```
+
+**Response** (200 OK):
+```json
+{
+  "success": true,
+  "data": {
+    "secret": "MZXW6YT...",
+    "qrCodeUrl": "data:image/png;base64,iVBOR...",
+    "backupCodes": ["A1B2C3D4", "E5F6G7H8", ...]
+  }
+}
+```
+
+---
+
+### POST /2fa/enable
+
+🔒 **Requires Authentication**
+
+Enable 2FA by verifying the setup with a code from authenticator app.
+
+**Headers**:
+```
+Authorization: Bearer <access_token>
+```
+
+**Request Body**:
+```json
+{
+  "secret": "MZXW6YT...",
+  "token": "123456",
+  "backupCodes": ["A1B2C3D4", "E5F6G7H8", ...]
+}
+```
+
+**Response** (200 OK):
+```json
+{
+  "success": true,
+  "message": "Two-factor authentication has been enabled successfully."
+}
+```
+
+---
+
+### POST /2fa/disable
+
+🔒 **Requires Authentication**
+
+Disable 2FA. Requires verification code.
+
+**Headers**:
+```
+Authorization: Bearer <access_token>
+```
+
+**Request Body**:
+```json
+{
+  "token": "123456"
+}
+```
+
+**Response** (200 OK):
+```json
+{
+  "success": true,
+  "message": "Two-factor authentication has been disabled."
+}
+```
+
+---
+
+### POST /2fa/verify
+
+Verify 2FA code during login process.
+
+**Request Body**:
+```json
+{
+  "token": "123456",
+  "tempToken": "ey..." // Temporary token from login step 1
+}
+```
+
+**Response** (200 OK):
+```json
+{
+  "success": true,
+  "message": "2FA verification successful."
+}
+```
+
+---
+
+### POST /2fa/backup-codes
+
+🔒 **Requires Authentication**
+
+Regenerate backup codes. Invalidates old codes.
+
+**Headers**:
+```
+Authorization: Bearer <access_token>
+```
+
+**Request Body**:
+```json
+{
+  "token": "123456" // Current TOTP code required
+}
+```
+
+**Response** (200 OK):
+```json
+{
+  "success": true,
+  "message": "New backup codes generated. Store them securely!",
+  "data": {
+    "backupCodes": ["NEW1CODE", "NEW2CODE", ...]
+  }
+}
+```
+
+---
+
 ## Health Endpoints
 
 ### GET /health

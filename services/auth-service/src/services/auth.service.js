@@ -19,6 +19,8 @@ const securityConfig = require('../config/security.config');
 const bcryptUtil = require('../utils/bcrypt.util');
 const jwtUtil = require('../utils/jwt.util');
 const tokenService = require('./token.service');
+const emailService = require('./email.service');
+const twoFactorService = require('./twoFactor.service');
 const logger = require('../utils/logger.util');
 const {
     DuplicateEmailError,
@@ -92,13 +94,16 @@ const register = async (userData) => {
         logger.warn('Failed to publish USER_REGISTERED event:', error.message);
     }
 
-    // TODO: Send verification email
-    logger.info(`Email verification token for ${email}: ${emailVerificationToken}`);
+    // Send verification email
+    try {
+        await emailService.sendVerificationEmail(user, emailVerificationToken);
+    } catch (error) {
+        logger.warn('Failed to send verification email:', error.message);
+    }
 
     return {
         userId: user.id,
         email: user.email,
-        verificationToken: emailVerificationToken, // Remove in production
     };
 };
 
@@ -188,14 +193,25 @@ const login = async (loginData) => {
     // Check 2FA if enabled
     if (user.twoFactorEnabled) {
         if (!twoFactorCode) {
+            // Generate a temporary token for 2FA verification step
+            const tempToken = jwtUtil.generateAccessToken({
+                id: user.id,
+                email: user.email,
+                role: user.role,
+                pending2FA: true
+            });
             return {
                 requires2FA: true,
                 message: '2FA code required',
+                tempToken,
             };
         }
-        // TODO: Verify 2FA code
-        // const isValid2FA = verify2FACode(user.twoFactorSecret, twoFactorCode);
-        // if (!isValid2FA) throw new InvalidCredentialsError('Invalid 2FA code');
+
+        // Verify 2FA code
+        const isValid2FA = twoFactorService.verifyToken(user.twoFactorSecret, twoFactorCode);
+        if (!isValid2FA) {
+            throw new InvalidCredentialsError('Invalid 2FA code');
+        }
     }
 
     // Reset failed login attempts on successful login
@@ -310,8 +326,12 @@ const forgotPassword = async (email) => {
 
     logger.auth('PASSWORD_RESET_REQUESTED', user.id, { email });
 
-    // TODO: Send password reset email
-    logger.info(`Password reset token for ${email}: ${resetToken}`);
+    // Send password reset email
+    try {
+        await emailService.sendPasswordResetEmail(user, resetToken);
+    } catch (error) {
+        logger.warn('Failed to send password reset email:', error.message);
+    }
 };
 
 /**
@@ -391,7 +411,12 @@ const resetPassword = async (token, newPassword) => {
         logger.warn('Failed to publish PASSWORD_CHANGED event:', error.message);
     }
 
-    // TODO: Send confirmation email
+    // Send password changed notification
+    try {
+        await emailService.sendPasswordChangedNotification(user);
+    } catch (error) {
+        logger.warn('Failed to send password changed notification:', error.message);
+    }
 };
 
 /**
@@ -515,6 +540,13 @@ const verifyEmail = async (token) => {
 
     logger.auth('EMAIL_VERIFIED', user.id);
 
+    // Send welcome email
+    try {
+        await emailService.sendWelcomeEmail(user);
+    } catch (error) {
+        logger.warn('Failed to send welcome email:', error.message);
+    }
+
     return { userId: user.id };
 };
 
@@ -550,8 +582,12 @@ const resendVerificationEmail = async (userId) => {
 
     logger.auth('VERIFICATION_EMAIL_RESENT', userId);
 
-    // TODO: Send verification email
-    logger.info(`New verification token for ${user.email}: ${verificationToken}`);
+    // Send verification email
+    try {
+        await emailService.sendVerificationEmail(user, verificationToken);
+    } catch (error) {
+        logger.warn('Failed to send verification email:', error.message);
+    }
 };
 
 module.exports = {

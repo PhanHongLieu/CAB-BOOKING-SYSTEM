@@ -24,6 +24,7 @@ const { apiRateLimiter } = require('./middleware/rateLimiter.middleware');
 
 // Import routes
 const authRoutes = require('./routes/auth.routes');
+const twoFactorRoutes = require('./routes/twoFactor.routes');
 
 // Swagger documentation
 const swaggerSpecs = require('./swagger');
@@ -147,6 +148,9 @@ app.use('/api', apiRateLimiter);
 
 // Auth routes
 app.use('/api/v1/auth', authRoutes);
+
+// 2FA routes
+app.use('/api/v1/auth/2fa', twoFactorRoutes);
 
 // Swagger Documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs, {

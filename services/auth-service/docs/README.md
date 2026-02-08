@@ -15,6 +15,7 @@ This folder contains comprehensive documentation for the Auth Service, designed 
 ## 🎯 Quick Links
 
 - **Getting Started**: See [../README.md](../README.md)
+- **API Testing Guide**: [Swagger Guide](./SWAGGER_GUIDE.md) ✅ NEW
 - **API Docs (Swagger)**: `http://localhost:3001/api-docs`
 - **Health Check**: `http://localhost:3001/health`
 
@@ -41,15 +42,19 @@ This folder contains comprehensive documentation for the Auth Service, designed 
 - [x] Unit tests (81 tests passing)
 - [x] Integration tests setup
 
-### Phase 3: Advanced Features ⏳ PENDING
-- [ ] Forgot password flow
-- [ ] Reset password flow
-- [ ] Change password endpoint
-- [ ] Email verification
-- [ ] 2FA (optional)
-- [ ] Account lockout logic
-- [ ] Password history check
-- [ ] RabbitMQ event publishing
+### Phase 3: Advanced Features ✅ COMPLETED
+- [x] Forgot password flow with email
+- [x] Reset password flow
+- [x] Change password endpoint
+- [x] Email verification with beautiful HTML templates
+- [x] Email service (nodemailer)
+- [x] Two-factor authentication (TOTP)
+- [x] 2FA setup with QR code
+- [x] 2FA backup codes
+- [x] Account lockout notifications
+- [x] Password changed notifications
+- [x] Welcome email after verification
+- [x] Unit tests (87 tests passing)
 
 ### Phase 4: Service-to-Service ⏳ PENDING
 - [ ] Service token generation

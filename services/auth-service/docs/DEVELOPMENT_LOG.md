@@ -208,6 +208,83 @@ Time:        2.789s
 
 ---
 
+## Phase 3: Advanced Features ✅ COMPLETED
+
+**Date**: 2026-02-08  
+**Duration**: ~15 minutes
+
+### What Was Built
+
+#### 1. Email Service (src/services/email.service.js)
+
+- **nodemailer** integration for SMTP email sending
+- Beautiful HTML email templates with:
+  - Email verification
+  - Password reset
+  - Password changed notification
+  - Account locked notification
+  - Welcome email
+- Fallback logging when SMTP not configured
+
+#### 2. Two-Factor Authentication (src/services/twoFactor.service.js)
+
+- **speakeasy** library for TOTP generation
+- **qrcode** library for QR code generation
+- Features:
+  - Generate secret and QR code
+  - Verify TOTP tokens
+  - Enable/disable 2FA
+  - Backup codes generation
+  - Backup codes regeneration
+
+#### 3. 2FA Routes and Controller
+
+- **src/routes/twoFactor.routes.js**: 2FA API endpoints with Swagger docs
+- **src/controllers/twoFactor.controller.js**: Request handlers
+- Endpoints:
+  - GET `/2fa/status` - Check 2FA status
+  - POST `/2fa/setup` - Generate QR code and backup codes
+  - POST `/2fa/enable` - Enable 2FA
+  - POST `/2fa/disable` - Disable 2FA
+  - POST `/2fa/verify` - Verify 2FA code
+  - POST `/2fa/backup-codes` - Regenerate backup codes
+
+#### 4. Auth Service Integration
+
+- Integrated email service into all auth flows
+- Integrated 2FA verification in login flow
+- Sends emails for:
+  - Registration verification
+  - Password reset
+  - Password changed
+  - Welcome after verification
+
+#### 5. Additional Tests
+
+- **twoFactor.service.test.js**: 2FA unit tests
+- **email.mock.js**: Email service mock
+- **twoFactor.mock.js**: 2FA service mock
+
+### Dependencies Added
+
+```json
+{
+  "nodemailer": "^6.x.x",
+  "speakeasy": "^2.x.x",
+  "qrcode": "^1.x.x"
+}
+```
+
+### Test Results
+
+```
+Test Suites: 7 passed, 7 total
+Tests:       87 passed, 87 total
+Time:        4.524s
+```
+
+---
+
 ## Technical Decisions Made
 
 ### 1. Replaced MongoDB with PostgreSQL
@@ -235,20 +312,29 @@ Time:        2.789s
 
 **Reason**: Simplifies imports, provides clear module boundaries.
 
+### 6. Email Service Fallback
+
+**Reason**: Allow development without SMTP server - emails are logged to console when SMTP not configured.
+
+### 7. TOTP with speakeasy
+
+**Reason**: Well-maintained library, compatible with Google Authenticator and similar apps.
+
 ---
 
 ## Known Issues
 
-1. **Email sending not implemented** - Currently logs verification/reset tokens to console
-2. **2FA not fully implemented** - Structure in place but TOTP verification pending
+1. ~~**Email sending not implemented**~~ ✅ FIXED in Phase 3
+2. ~~**2FA not fully implemented**~~ ✅ FIXED in Phase 3
 3. **Prometheus metrics not implemented** - Planned for Phase 5
+4. **Backup codes storage** - Currently not persisted to database (in-memory only)
 
 ---
 
 ## Next Steps
 
-1. Complete Phase 2 testing
-2. Implement email sending service
-3. Add Prometheus metrics
-4. Write unit and integration tests
-5. Security audit
+1. Implement backup codes persistence in database
+2. Add Prometheus metrics
+3. Security audit
+4. Performance testing
+5. Production deployment configuration

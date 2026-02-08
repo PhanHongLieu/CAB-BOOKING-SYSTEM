@@ -199,6 +199,65 @@ cors: {
 
 ---
 
+---
+
+## Two-Factor Authentication (2FA)
+
+### Implementation
+
+- **Algorithm**: Time-based One-Time Password (TOTP) (RFC 6238)
+- **Library**: `speakeasy`
+- **Secret Storage**: Base32 encoded secret stored in database
+- **Verification**: 6-digit code, 30-second window (allows 1 step clock skew)
+
+### Backup Codes
+
+- **Generation**: 10 random 8-character alphanumeric codes
+- **Storage**: Hashed (SHA-256) in database (recommended for production)
+- **Usage**: One-time use only (in theory, currently MVP implementation)
+- **Regeneration**: Invalidates all previous codes
+
+### Security Measures
+
+1. **Secret Generation**: Cryptographically secure random components
+2. **QR Code**: Generated as Data URL, never stored
+3. **Enforcement**: 
+   - Login flow blocked until 2FA verified if enabled
+   - Temporary restricted token used during 2FA step
+4. **Recovery**: Backup codes for lost device access
+
+---
+
+## Email Security
+
+### Verification Flow
+
+1. User registers -> Account specific logic (status: pending)
+2. Secure random token generated (32 bytes hex)
+3. Token hashed (SHA-256) and stored in DB with expiration
+4. **Original** token sent via email (never stored plain)
+5. Link clicked -> Token hashed and compared with DB
+6. If match -> Email verified, token cleared
+
+### Password Reset Flow
+
+Similar to verification but with stricter controls:
+1. **Rate Limiting**: 3 requests per hour
+2. **Expiration**: 1 hour (short-lived)
+3. **Invalidation**: 
+   - On successful reset
+   - On new request (old token invalidated)
+4. **Notification**: Email sent on request AND on success
+
+### Anti-Phishing
+
+- Templates use specific branding
+- Links valid only for specific actions
+- "Don't click if you didn't request" warnings
+- No sensitive data in email body
+
+---
+
 ## Security Headers (Helmet)
 
 Automatically applied headers:
