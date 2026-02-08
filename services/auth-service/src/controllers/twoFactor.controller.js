@@ -6,7 +6,7 @@
  */
 
 const twoFactorService = require('../services/twoFactor.service');
-const { asyncHandler } = require('../utils/asyncHandler.util');
+const asyncHandler = require('../utils/asyncHandler.util');
 const logger = require('../utils/logger.util');
 
 /**

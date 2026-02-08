@@ -18,6 +18,9 @@ services:
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
       - JWT_ACCESS_SECRET=your-super-secret-access-key-change-in-production
       - JWT_REFRESH_SECRET=your-super-secret-refresh-key-change-in-production
+    volumes:
+      - .:/app
+      - /app/node_modules
     depends_on:
       postgres:
         condition: service_healthy

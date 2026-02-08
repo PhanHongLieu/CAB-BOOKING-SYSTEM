@@ -54,6 +54,10 @@ const swaggerDefinition = {
             description: 'User authentication endpoints',
         },
         {
+            name: 'Two-Factor Authentication',
+            description: '2FA management endpoints',
+        },
+        {
             name: 'Password',
             description: 'Password management endpoints',
         },
