@@ -46,7 +46,8 @@ app.get('/health', (req, res) => {
       driver: process.env.DRIVER_SERVICE_URL,
       payment: process.env.PAYMENT_SERVICE_URL,
       notification: process.env.NOTIFICATION_SERVICE_URL,
-      location: process.env.LOCATION_SERVICE_URL
+      location: process.env.LOCATION_SERVICE_URL,
+      review: process.env.REVIEW_SERVICE_URL
     }
   });
 });
@@ -110,6 +111,16 @@ const services = {
     target: process.env.LOCATION_SERVICE_URL || 'http://localhost:3006',
     changeOrigin: true,
     pathRewrite: { '^/api/location': '/api/location' }
+  },
+  '/api/reviews': {
+    target: process.env.REVIEW_SERVICE_URL || 'http://localhost:3007',
+    changeOrigin: true,
+    pathRewrite: { '^/api/reviews': '/api/reviews' },
+    onProxyReq: (proxyReq, req, res) => {
+      if (req.headers.authorization) {
+        proxyReq.setHeader('Authorization', req.headers.authorization);
+      }
+    }
   }
 };
 

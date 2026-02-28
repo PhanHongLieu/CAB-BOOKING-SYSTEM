@@ -375,6 +375,7 @@ services:
       - PAYMENT_SERVICE_URL=http://payment-service:3004
       - NOTIFICATION_SERVICE_URL=http://notification-service:3005
       - LOCATION_SERVICE_URL=http://location-service:3006
+      - REVIEW_SERVICE_URL=http://review-service:3007
     depends_on:
       - auth-service
       - booking-service
@@ -382,6 +383,54 @@ services:
       - payment-service
       - notification-service
       - location-service
+      - review-service
+    networks:
+      - cab-network
+    restart: unless-stopped
+
+  # PostgreSQL for Reviews
+  postgres-review:
+    image: postgres:15
+    container_name: cab-postgres-review
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: review_user
+      POSTGRES_PASSWORD: review_pass
+      POSTGRES_DB: review_db
+    volumes:
+      - postgres_review_data:/var/lib/postgresql/data
+    networks:
+      - cab-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U review_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Review Service
+  review-service:
+    build:
+      context: ./services/review-service
+      dockerfile: Dockerfile
+    container_name: cab-review-service
+    ports:
+      - "3007:3007"
+    environment:
+      - NODE_ENV=development
+      - PORT=3007
+      - SERVICE_NAME=review-service
+      - POSTGRES_URI=postgres://review_user:review_pass@postgres-review:5432/review_db
+      - AUTH_SERVICE_URL=http://auth-service:3001
+      - BOOKING_SERVICE_URL=http://booking-service:3002
+      - DRIVER_SERVICE_URL=http://driver-service:3003
+      - JAEGER_AGENT_HOST=jaeger
+      - JAEGER_AGENT_PORT=6831
+    depends_on:
+      - postgres-review
+      - auth-service
+      - booking-service
+      - driver-service
     networks:
       - cab-network
     restart: unless-stopped
@@ -413,6 +462,7 @@ volumes:
   rabbitmq_data:
   prometheus_data:
   grafana_data:
+  postgres_review_data:
 
 networks:
   cab-network:
