@@ -1,5 +1,4 @@
-const { resolveDependency } = require('./resolveDependency');
-const winston = resolveDependency('winston');
+const winston = require('winston');
 
 const logger = winston.createLogger({
   level: process.env.LOG_LEVEL || 'info',

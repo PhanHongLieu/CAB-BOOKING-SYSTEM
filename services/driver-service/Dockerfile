@@ -5,6 +5,7 @@ WORKDIR /workspace/services/driver-service
 
 COPY services/driver-service/package*.json ./
 RUN npm ci --omit=dev
+RUN mkdir -p /workspace && ln -s /workspace/services/driver-service/node_modules /workspace/node_modules
 
 COPY services/driver-service ./
 COPY shared /workspace/shared

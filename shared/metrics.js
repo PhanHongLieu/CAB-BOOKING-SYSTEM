@@ -1,5 +1,4 @@
-const { resolveDependency } = require('./resolveDependency');
-const client = resolveDependency('prom-client');
+const client = require('prom-client');
 const logger = require('./logger');
 
 // Create a Registry to register the metrics
