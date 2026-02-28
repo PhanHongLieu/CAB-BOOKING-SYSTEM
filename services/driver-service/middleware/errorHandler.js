@@ -1,25 +1,86 @@
-const logger = require('../../shared/logger');
-const { AppError } = require('../../shared/errors');
+const logger = require('../../../shared/logger');
 
-exports.errorHandler = (err, req, res, next) => {
-  let error = { ...err };
-  error.message = err.message;
-  logger.error(err);
+const { AppError } = require('../../../shared/errors');
 
-  if (err.name === 'CastError') {
-    error = new AppError('Resource not found', 404);
-  }
-  if (err.code === 11000) {
-    error = new AppError('Duplicate field value entered', 400);
-  }
-  if (err.name === 'ValidationError') {
-    const message = Object.values(err.errors).map(val => val.message).join(', ');
-    error = new AppError(message, 400);
-  }
 
-  res.status(error.statusCode || 500).json({
-    success: false,
-    error: error.message || 'Server Error',
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
-  });
+exports.errorHandler = (err,req,res,next)=>{
+
+ let statusCode = err.statusCode || 500;
+
+ let message = err.message || "Server Error";
+
+
+ /* ===== LOG ERROR ===== */
+
+ logger.error({
+
+ message:err.message,
+
+ stack:err.stack
+
+ });
+
+
+ /* ===== MONGOOSE CAST ERROR ===== */
+
+ if(err.name==="CastError"){
+
+ statusCode=404;
+
+ message="Resource not found";
+
+ }
+
+
+ /* ===== DUPLICATE KEY ===== */
+
+ if(err.code===11000){
+
+ statusCode=400;
+
+ message="Duplicate value entered";
+
+ }
+
+
+ /* ===== VALIDATION ERROR ===== */
+
+ if(err.name==="ValidationError"){
+
+ statusCode=400;
+
+ message=Object.values(err.errors)
+
+ .map(e=>e.message)
+
+ .join(",");
+
+ }
+
+
+ /* ===== GEOJSON ERROR ===== */
+
+ if(err.message && err.message.includes("geo")){
+
+ statusCode=400;
+
+ message="Invalid location format";
+
+ }
+
+
+ res.status(statusCode).json({
+
+ success:false,
+
+ error:message,
+
+ ...(process.env.NODE_ENV==="development" && {
+
+ stack:err.stack
+
+ })
+
+ });
+
 };

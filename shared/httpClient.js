@@ -1,4 +1,5 @@
-const axios = require('axios');
+const { resolveDependency } = require('./resolveDependency');
+const axios = resolveDependency('axios');
 const logger = require('./logger');
 
 class HttpClient {

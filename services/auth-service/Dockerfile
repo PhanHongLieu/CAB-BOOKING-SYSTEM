@@ -1,21 +1,16 @@
 FROM node:18-alpine
 
-WORKDIR /app
+# Keep the same folder layout as local development so relative imports to ../../shared work.
+WORKDIR /workspace/services/auth-service
 
-# Copy package files
-COPY package*.json ./
+COPY services/auth-service/package*.json ./
+RUN npm ci --omit=dev
 
-# Install dependencies
-RUN npm ci --only=production
+COPY services/auth-service ./
+COPY shared /workspace/shared
 
-# Copy application code
-COPY . .
-
-# Create logs directory
 RUN mkdir -p logs
 
-# Expose port
 EXPOSE 3001
 
-# Start application
 CMD ["node", "server.js"]

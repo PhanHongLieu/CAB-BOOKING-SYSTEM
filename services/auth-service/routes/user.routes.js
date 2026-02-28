@@ -1,7 +1,7 @@
 const express = require('express');
 const User = require('../models/User.model');
 const { authenticate, authorize } = require('../middleware/auth.middleware');
-const { NotFoundError } = require('../../shared/errors');
+const { NotFoundError } = require('../../../shared/errors');
 
 const router = express.Router();
 
@@ -35,3 +35,4 @@ router.get('/', authenticate, authorize('admin'), async (req, res, next) => {
 });
 
 module.exports = router;
+

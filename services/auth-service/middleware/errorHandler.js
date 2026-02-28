@@ -1,5 +1,5 @@
-const logger = require('../../shared/logger');
-const { AppError } = require('../../shared/errors');
+const logger = require('../../../shared/logger');
+const { AppError, UnauthorizedError } = require('../../../shared/errors');
 
 exports.errorHandler = (err, req, res, next) => {
   let error = { ...err };
@@ -26,9 +26,18 @@ exports.errorHandler = (err, req, res, next) => {
     error = new AppError(message, 400);
   }
 
+  // JWT errors
+  if (err.name === 'JsonWebTokenError') {
+    error = new UnauthorizedError('Invalid token');
+  }
+  if (err.name === 'TokenExpiredError') {
+    error = new UnauthorizedError('Token expired');
+  }
+
   res.status(error.statusCode || 500).json({
     success: false,
     error: error.message || 'Server Error',
     ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
   });
 };
+

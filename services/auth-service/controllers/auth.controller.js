@@ -1,9 +1,9 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User.model');
-const { ValidationError, UnauthorizedError } = require('../../shared/errors');
-const logger = require('../../shared/logger');
-const { getEventBus } = require('../../shared/eventBus');
-const { recordEventPublished } = require('../../shared/metrics');
+const { ValidationError, UnauthorizedError } = require('../../../shared/errors');
+const logger = require('../../../shared/logger');
+const { getEventBus } = require('../../../shared/eventBus');
+const { recordEventPublished } = require('../../../shared/metrics');
 
 const generateTokens = (userId) => {
   const accessToken = jwt.sign(
@@ -214,3 +214,4 @@ exports.verifyToken = async (req, res, next) => {
     next(error);
   }
 };
+

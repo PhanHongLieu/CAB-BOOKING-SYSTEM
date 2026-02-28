@@ -1,4 +1,5 @@
-const amqp = require('amqplib');
+const { resolveDependency } = require('./resolveDependency');
+const amqp = resolveDependency('amqplib');
 const logger = require('./logger');
 
 class EventBus {
@@ -34,7 +35,7 @@ class EventBus {
         this.isConnected = false;
       });
     } catch (error) {
-      logger.error('Failed to connect to Event Bus:', error);
+      logger.warn(`Failed to connect to Event Bus: ${error.code || error.message}`);
       throw error;
     }
   }

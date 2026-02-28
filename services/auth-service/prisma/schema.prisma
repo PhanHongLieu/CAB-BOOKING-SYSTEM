@@ -1,0 +1,116 @@
+// Prisma Schema for Auth Service
+// PostgreSQL Database
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==========================================
+// User Model
+// ==========================================
+model User {
+  id                   String            @id @default(uuid())
+  email                String            @unique
+  password             String
+  role                 Role              @default(CUSTOMER)
+  firstName            String            @map("first_name")
+  lastName             String            @map("last_name")
+  phoneNumber          String            @unique @map("phone_number")
+  isEmailVerified      Boolean           @default(false) @map("is_email_verified")
+  isPhoneVerified      Boolean           @default(false) @map("is_phone_verified")
+  isActive             Boolean           @default(true) @map("is_active")
+
+  // 2FA
+  twoFactorEnabled     Boolean           @default(false) @map("two_factor_enabled")
+  twoFactorSecret      String?           @map("two_factor_secret")
+
+  // Email Verification
+  emailVerificationToken    String?      @map("email_verification_token")
+  emailVerificationExpires  DateTime?    @map("email_verification_expires")
+
+  // Security tracking
+  lastLogin            DateTime?         @map("last_login")
+  lastLoginIP          String?           @map("last_login_ip")
+  failedLoginAttempts  Int               @default(0) @map("failed_login_attempts")
+  accountLockedUntil   DateTime?         @map("account_locked_until")
+  passwordChangedAt    DateTime?         @map("password_changed_at")
+  passwordResetToken   String?           @map("password_reset_token")
+  passwordResetExpires DateTime?         @map("password_reset_expires")
+
+  // Password history relation
+  passwordHistory      PasswordHistory[]
+
+  // Service-to-service
+  serviceId            String?           @unique @map("service_id")
+  allowedServices      String[]          @map("allowed_services")
+
+  // Refresh tokens
+  refreshTokens        RefreshToken[]
+
+  // Timestamps
+  createdAt            DateTime          @default(now()) @map("created_at")
+  updatedAt            DateTime          @updatedAt @map("updated_at")
+
+  @@index([email])
+  @@index([phoneNumber])
+  @@index([isActive])
+  @@index([role])
+  @@map("users")
+}
+
+// ==========================================
+// Role Enum
+// ==========================================
+enum Role {
+  CUSTOMER
+  DRIVER
+  ADMIN
+  SERVICE
+}
+
+// ==========================================
+// Password History Model
+// ==========================================
+model PasswordHistory {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  password  String
+  changedAt DateTime @default(now()) @map("changed_at")
+
+  @@index([userId])
+  @@map("password_history")
+}
+
+// ==========================================
+// Refresh Token Model
+// ==========================================
+model RefreshToken {
+  id              String    @id @default(uuid())
+  token           String    @unique
+  userId          String    @map("user_id")
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt       DateTime  @map("expires_at")
+  createdByIp     String?   @map("created_by_ip")
+  revokedAt       DateTime? @map("revoked_at")
+  revokedByIp     String?   @map("revoked_by_ip")
+  replacedByToken String?   @map("replaced_by_token")
+  isActive        Boolean   @default(true) @map("is_active")
+  lastUsedAt      DateTime? @map("last_used_at")
+  usageCount      Int       @default(0) @map("usage_count")
+
+  // Timestamps
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@index([token])
+  @@index([userId])
+  @@index([expiresAt])
+  @@index([isActive])
+  @@map("refresh_tokens")
+}
