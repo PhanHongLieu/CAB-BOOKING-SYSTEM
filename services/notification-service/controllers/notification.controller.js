@@ -1,5 +1,5 @@
 const Notification = require('../models/Notification.model');
-const { NotFoundError } = require('../../shared/errors');
+const { NotFoundError, ValidationError } = require('../../shared/errors');
 const logger = require('../../shared/logger');
 const { sendNotification } = require('../socket/socket.handler');
 
@@ -12,6 +12,9 @@ exports.setIo = (io) => {
 exports.sendNotification = async (req, res, next) => {
   try {
     const { userId, type, title, message, data } = req.body;
+    if (!userId || !type || !title || !message) {
+      throw new ValidationError('userId, type, title and message are required');
+    }
 
     if (!ioInstance) {
       throw new Error('Socket.io instance not initialized');
@@ -38,6 +41,12 @@ exports.sendNotification = async (req, res, next) => {
 exports.broadcastNotification = async (req, res, next) => {
   try {
     const { userIds, type, title, message, data } = req.body;
+    if (!Array.isArray(userIds) || userIds.length === 0) {
+      throw new ValidationError('userIds must be a non-empty array');
+    }
+    if (!type || !title || !message) {
+      throw new ValidationError('type, title and message are required');
+    }
 
     if (!ioInstance) {
       throw new Error('Socket.io instance not initialized');

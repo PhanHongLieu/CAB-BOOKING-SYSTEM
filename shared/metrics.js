@@ -1,51 +1,69 @@
 const client = require('prom-client');
 const logger = require('./logger');
 
-// Create a Registry to register the metrics
-const register = new client.Registry();
+const GLOBAL_KEY = '__cab_metrics_singleton__';
+if (!global[GLOBAL_KEY]) {
+  const register = client.register;
+  client.collectDefaultMetrics({ register });
 
-// Add default metrics
-client.collectDefaultMetrics({ register });
+  const getOrCreateCounter = (config) => {
+    return register.getSingleMetric(config.name) || new client.Counter(config);
+  };
 
-// Custom metrics
-const httpRequestDuration = new client.Histogram({
-  name: 'http_request_duration_seconds',
-  help: 'Duration of HTTP requests in seconds',
-  labelNames: ['method', 'route', 'status_code'],
-  buckets: [0.1, 0.5, 1, 2, 5]
-});
+  const getOrCreateHistogram = (config) => {
+    return register.getSingleMetric(config.name) || new client.Histogram(config);
+  };
 
-const httpRequestTotal = new client.Counter({
-  name: 'http_requests_total',
-  help: 'Total number of HTTP requests',
-  labelNames: ['method', 'route', 'status_code']
-});
+  const httpRequestDuration = getOrCreateHistogram({
+    name: 'http_request_duration_seconds',
+    help: 'Duration of HTTP requests in seconds',
+    labelNames: ['method', 'route', 'status_code'],
+    buckets: [0.1, 0.5, 1, 2, 5]
+  });
 
-const eventsPublished = new client.Counter({
-  name: 'events_published_total',
-  help: 'Total number of events published',
-  labelNames: ['event_type', 'service']
-});
+  const httpRequestTotal = getOrCreateCounter({
+    name: 'http_requests_total',
+    help: 'Total number of HTTP requests',
+    labelNames: ['method', 'route', 'status_code']
+  });
 
-const eventsConsumed = new client.Counter({
-  name: 'events_consumed_total',
-  help: 'Total number of events consumed',
-  labelNames: ['event_type', 'service']
-});
+  const eventsPublished = getOrCreateCounter({
+    name: 'events_published_total',
+    help: 'Total number of events published',
+    labelNames: ['event_type', 'service']
+  });
 
-const databaseOperations = new client.Histogram({
-  name: 'database_operations_duration_seconds',
-  help: 'Duration of database operations in seconds',
-  labelNames: ['operation', 'collection'],
-  buckets: [0.01, 0.05, 0.1, 0.5, 1]
-});
+  const eventsConsumed = getOrCreateCounter({
+    name: 'events_consumed_total',
+    help: 'Total number of events consumed',
+    labelNames: ['event_type', 'service']
+  });
 
-// Register metrics
-register.registerMetric(httpRequestDuration);
-register.registerMetric(httpRequestTotal);
-register.registerMetric(eventsPublished);
-register.registerMetric(eventsConsumed);
-register.registerMetric(databaseOperations);
+  const databaseOperations = getOrCreateHistogram({
+    name: 'database_operations_duration_seconds',
+    help: 'Duration of database operations in seconds',
+    labelNames: ['operation', 'collection'],
+    buckets: [0.01, 0.05, 0.1, 0.5, 1]
+  });
+
+  global[GLOBAL_KEY] = {
+    register,
+    httpRequestDuration,
+    httpRequestTotal,
+    eventsPublished,
+    eventsConsumed,
+    databaseOperations
+  };
+}
+
+const {
+  register,
+  httpRequestDuration,
+  httpRequestTotal,
+  eventsPublished,
+  eventsConsumed,
+  databaseOperations
+} = global[GLOBAL_KEY];
 
 // Middleware for Express
 const metricsMiddleware = (req, res, next) => {
