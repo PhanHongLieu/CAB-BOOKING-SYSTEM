@@ -2,16 +2,14 @@ FROM node:18-alpine
 
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
+COPY services/auth-service/package*.json ./
+RUN npm install --omit=dev
 
-# Install dependencies
-RUN npm ci --only=production
-
-# Copy application code
-COPY . .
+COPY shared ./shared
+COPY services/auth-service ./services/auth-service
 
 # Create logs directory
+WORKDIR /app/services/auth-service
 RUN mkdir -p logs
 
 # Expose port

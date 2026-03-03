@@ -1,6 +1,6 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User.model');
-const { UnauthorizedError } = require('../../shared/errors');
+const { UnauthorizedError } = require('../../../shared/errors');
 
 exports.authenticate = async (req, res, next) => {
   try {

@@ -1,15 +1,9 @@
 const Booking = require('../models/Booking.model');
-const HttpClient = require('../../shared/httpClient');
-const { ValidationError, NotFoundError } = require('../../shared/errors');
-const logger = require('../../shared/logger');
-const { getEventBus } = require('../../shared/eventBus');
-const { BOOKING_EVENTS } = require('../../shared/events');
-const { recordEventPublished } = require('../../shared/metrics');
-
-const authClient = new HttpClient(process.env.AUTH_SERVICE_URL || 'http://localhost:3001');
-const driverClient = new HttpClient(process.env.DRIVER_SERVICE_URL || 'http://localhost:3003');
-const locationClient = new HttpClient(process.env.LOCATION_SERVICE_URL || 'http://localhost:3006');
-const notificationClient = new HttpClient(process.env.NOTIFICATION_SERVICE_URL || 'http://localhost:3005');
+const { ValidationError, NotFoundError, ForbiddenError } = require('../../../shared/errors');
+const logger = require('../../../shared/logger');
+const { getEventBus } = require('../../../shared/eventBus');
+const { BOOKING_EVENTS } = require('../../../shared/events');
+const { recordEventPublished } = require('../../../shared/metrics');
 
 // Calculate fare based on distance and time
 const calculateFare = (distance, duration, vehicleType) => {
@@ -50,7 +44,12 @@ const calculateFare = (distance, duration, vehicleType) => {
 exports.createBooking = async (req, res, next) => {
   try {
     const userId = req.user.userId;
+    const { role } = req.user;
     const { pickupLocation, dropoffLocation, vehicleType, scheduledAt } = req.body;
+
+    if (!['customer', 'admin'].includes(role)) {
+      throw new ForbiddenError('Only customer can create booking');
+    }
 
     // Calculate distance and duration (simplified - in production, use Google Maps API)
     const distance = calculateDistance(
@@ -72,7 +71,7 @@ exports.createBooking = async (req, res, next) => {
       fare,
       vehicleType: vehicleType || 'economy',
       scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
-      status: scheduledAt ? 'pending' : 'pending'
+      status: 'pending'
     });
 
     // Publish booking.created event (Event-Driven)
@@ -152,17 +151,15 @@ exports.getBooking = async (req, res, next) => {
     const userId = req.user.userId;
     const { role } = req.user;
 
-    const booking = await Booking.findById(id)
-      .populate('customerId', 'name email phone')
-      .populate('driverId', 'name email phone');
+    const booking = await Booking.findById(id);
 
     if (!booking) {
       throw new NotFoundError('Booking');
     }
 
     // Check authorization
-    if (booking.customerId._id.toString() !== userId && 
-        booking.driverId?._id?.toString() !== userId && 
+    if (booking.customerId.toString() !== userId &&
+        booking.driverId?.toString() !== userId &&
         role !== 'admin') {
       throw new NotFoundError('Booking');
     }
@@ -180,19 +177,26 @@ exports.acceptBooking = async (req, res, next) => {
   try {
     const { id } = req.params;
     const userId = req.user.userId;
+    const { role } = req.user;
 
-    const booking = await Booking.findById(id);
+    if (role !== 'driver') {
+      throw new ForbiddenError('Only driver can accept booking');
+    }
+
+    // Atomic update to prevent two drivers accepting the same booking.
+    const booking = await Booking.findOneAndUpdate(
+      { _id: id, status: 'pending', driverId: { $exists: false } },
+      { $set: { driverId: userId, status: 'accepted' } },
+      { new: true }
+    );
+
     if (!booking) {
-      throw new NotFoundError('Booking');
+      const existingBooking = await Booking.findById(id).select('status');
+      if (!existingBooking) {
+        throw new NotFoundError('Booking');
+      }
+      throw new ValidationError(`Booking is already ${existingBooking.status}`);
     }
-
-    if (booking.status !== 'pending') {
-      throw new ValidationError('Booking is not available for acceptance');
-    }
-
-    booking.driverId = userId;
-    booking.status = 'driver_assigned';
-    await booking.save();
 
     // Publish booking.accepted and booking.driver.assigned events
     try {
@@ -235,15 +239,35 @@ exports.updateBookingStatus = async (req, res, next) => {
     const { id } = req.params;
     const { status } = req.body;
     const userId = req.user.userId;
+    const { role } = req.user;
+
+    const allowedStatuses = ['arrived', 'in_progress', 'completed', 'cancelled'];
+    if (!allowedStatuses.includes(status)) {
+      throw new ValidationError(`Unsupported status: ${status}`);
+    }
 
     const booking = await Booking.findById(id);
     if (!booking) {
       throw new NotFoundError('Booking');
     }
 
+    const isCustomer = booking.customerId.toString() === userId;
+    const isAssignedDriver = booking.driverId?.toString() === userId;
+
+    if (role !== 'admin') {
+      if (status === 'cancelled') {
+        if (!isCustomer && !isAssignedDriver) {
+          throw new ForbiddenError('Only related customer/driver can cancel booking');
+        }
+      } else if (!isAssignedDriver) {
+        throw new ForbiddenError('Only assigned driver can update this status');
+      }
+    }
+
     // Validate status transition
     const validTransitions = {
-      'pending': ['accepted', 'cancelled'],
+      'pending': ['cancelled'],
+      'accepted': ['arrived', 'cancelled'],
       'driver_assigned': ['arrived', 'cancelled'],
       'arrived': ['in_progress', 'cancelled'],
       'in_progress': ['completed', 'cancelled'],
@@ -253,18 +277,27 @@ exports.updateBookingStatus = async (req, res, next) => {
       throw new ValidationError(`Invalid status transition from ${booking.status} to ${status}`);
     }
 
-    booking.status = status;
-    
+    const previousStatus = booking.status;
+    const updatePayload = { status };
+
     if (status === 'in_progress') {
-      booking.startedAt = new Date();
+      updatePayload.startedAt = new Date();
     } else if (status === 'completed') {
-      booking.completedAt = new Date();
+      updatePayload.completedAt = new Date();
     } else if (status === 'cancelled') {
-      booking.cancelledAt = new Date();
-      booking.cancellationReason = req.body.reason;
+      updatePayload.cancelledAt = new Date();
+      updatePayload.cancellationReason = req.body.reason;
     }
 
-    await booking.save();
+    const updatedBooking = await Booking.findOneAndUpdate(
+      { _id: id, status: previousStatus },
+      { $set: updatePayload },
+      { new: true }
+    );
+
+    if (!updatedBooking) {
+      throw new ValidationError('Booking status was changed by another request. Please retry.');
+    }
 
     // Publish booking.status.changed event
     try {
@@ -272,11 +305,11 @@ exports.updateBookingStatus = async (req, res, next) => {
       await eventBus.publish(
         BOOKING_EVENTS.BOOKING_STATUS_CHANGED,
         {
-          bookingId: booking._id.toString(),
+          bookingId: updatedBooking._id.toString(),
           status,
-          previousStatus: req.body.previousStatus,
-          customerId: booking.customerId.toString(),
-          driverId: booking.driverId?.toString()
+          previousStatus,
+          customerId: updatedBooking.customerId.toString(),
+          driverId: updatedBooking.driverId?.toString()
         }
       );
       recordEventPublished(BOOKING_EVENTS.BOOKING_STATUS_CHANGED, 'booking-service');
@@ -286,10 +319,10 @@ exports.updateBookingStatus = async (req, res, next) => {
         await eventBus.publish(
           BOOKING_EVENTS.BOOKING_COMPLETED,
           {
-            bookingId: booking._id.toString(),
-            customerId: booking.customerId.toString(),
-            driverId: booking.driverId?.toString(),
-            fare: booking.fare
+            bookingId: updatedBooking._id.toString(),
+            customerId: updatedBooking.customerId.toString(),
+            driverId: updatedBooking.driverId?.toString(),
+            fare: updatedBooking.fare
           }
         );
         recordEventPublished(BOOKING_EVENTS.BOOKING_COMPLETED, 'booking-service');
@@ -300,7 +333,7 @@ exports.updateBookingStatus = async (req, res, next) => {
 
     res.json({
       success: true,
-      data: booking
+      data: updatedBooking
     });
   } catch (error) {
     next(error);
@@ -312,20 +345,39 @@ exports.cancelBooking = async (req, res, next) => {
     const { id } = req.params;
     const { reason } = req.body;
     const userId = req.user.userId;
+    const { role } = req.user;
 
     const booking = await Booking.findById(id);
     if (!booking) {
       throw new NotFoundError('Booking');
     }
 
+    const isCustomer = booking.customerId.toString() === userId;
+    const isAssignedDriver = booking.driverId?.toString() === userId;
+
+    if (role !== 'admin' && !isCustomer && !isAssignedDriver) {
+      throw new ForbiddenError('You cannot cancel this booking');
+    }
+
     if (['completed', 'cancelled'].includes(booking.status)) {
       throw new ValidationError('Cannot cancel a completed or already cancelled booking');
     }
 
-    booking.status = 'cancelled';
-    booking.cancelledAt = new Date();
-    booking.cancellationReason = reason;
-    await booking.save();
+    const updatedBooking = await Booking.findOneAndUpdate(
+      { _id: id, status: booking.status },
+      {
+        $set: {
+          status: 'cancelled',
+          cancelledAt: new Date(),
+          cancellationReason: reason
+        }
+      },
+      { new: true }
+    );
+
+    if (!updatedBooking) {
+      throw new ValidationError('Booking status was changed by another request. Please retry.');
+    }
 
     // Publish booking.cancelled event
     try {
@@ -333,9 +385,9 @@ exports.cancelBooking = async (req, res, next) => {
       await eventBus.publish(
         BOOKING_EVENTS.BOOKING_CANCELLED,
         {
-          bookingId: booking._id.toString(),
-          customerId: booking.customerId.toString(),
-          driverId: booking.driverId?.toString(),
+          bookingId: updatedBooking._id.toString(),
+          customerId: updatedBooking.customerId.toString(),
+          driverId: updatedBooking.driverId?.toString(),
           reason,
           cancelledBy: userId
         }
@@ -347,7 +399,7 @@ exports.cancelBooking = async (req, res, next) => {
 
     res.json({
       success: true,
-      data: booking
+      data: updatedBooking
     });
   } catch (error) {
     next(error);
