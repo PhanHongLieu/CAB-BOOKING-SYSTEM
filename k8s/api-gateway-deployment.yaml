@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-gateway
+  namespace: cab-booking-system
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: api-gateway
+  template:
+    metadata:
+      labels:
+        app: api-gateway
+    spec:
+      containers:
+      - name: api-gateway
+        image: cab-booking/api-gateway:latest
+        ports:
+        - containerPort: 8000
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: PORT
+          value: "8000"
+        - name: AUTH_SERVICE_URL
+          value: "http://auth-service:3001"
+        - name: BOOKING_SERVICE_URL
+          value: "http://booking-service:3002"
+        - name: DRIVER_SERVICE_URL
+          value: "http://driver-service:3003"
+        - name: PAYMENT_SERVICE_URL
+          value: "http://payment-service:3004"
+        - name: NOTIFICATION_SERVICE_URL
+          value: "http://notification-service:3005"
+        - name: LOCATION_SERVICE_URL
+          value: "http://location-service:3006"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-gateway
+  namespace: cab-booking-system
+spec:
+  selector:
+    app: api-gateway
+  ports:
+  - port: 8000
+    targetPort: 8000
+  type: LoadBalancer
