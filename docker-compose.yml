@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # MongoDB Databases - Database per Service Pattern
   mongodb-auth:
@@ -97,6 +95,25 @@ services:
       timeout: 5s
       retries: 5
 
+  mongodb-ride:
+    image: mongo:7.0
+    container_name: cab-mongodb-ride
+    ports:
+      - "27023:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: admin123
+      MONGO_INITDB_DATABASE: ride_db
+    volumes:
+      - mongodb_ride_data:/data/db
+    networks:
+      - cab-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   # Redis Cache
   redis:
     image: redis:7-alpine
@@ -185,8 +202,8 @@ services:
   # Auth Service
   auth-service:
     build:
-      context: ./services/auth-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/auth-service/Dockerfile
     container_name: cab-auth-service
     ports:
       - "3001:3001"
@@ -358,6 +375,35 @@ services:
       - cab-network
     restart: unless-stopped
 
+  # Ride Service
+  ride-service:
+    build:
+      context: ./services/ride-service
+      dockerfile: Dockerfile
+    container_name: cab-ride-service
+    ports:
+      - "3007:3007"
+    environment:
+      - NODE_ENV=development
+      - PORT=3007
+      - SERVICE_NAME=ride-service
+      - MONGODB_URI=mongodb://admin:admin123@mongodb-ride:27017/ride_db?authSource=admin
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - RABBITMQ_URL=amqp://admin:admin123@rabbitmq:5672
+      - EVENT_EXCHANGE=cab_booking_events
+      - AUTH_SERVICE_URL=http://auth-service:3001
+      - JAEGER_AGENT_HOST=jaeger
+      - JAEGER_AGENT_PORT=6831
+    depends_on:
+      - mongodb-ride
+      - redis
+      - rabbitmq
+      - auth-service
+    networks:
+      - cab-network
+    restart: unless-stopped
+
   # API Gateway
   api-gateway:
     build:
@@ -409,6 +455,7 @@ volumes:
   mongodb_driver_data:
   mongodb_payment_data:
   mongodb_notification_data:
+  mongodb_ride_data:
   redis_data:
   rabbitmq_data:
   prometheus_data:

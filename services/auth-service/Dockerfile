@@ -3,13 +3,13 @@ FROM node:18-alpine
 WORKDIR /app
 
 # Copy package files
-COPY package*.json ./
-
-# Install dependencies
-RUN npm ci --only=production
+COPY services/auth-service/package*.json ./
+RUN npm install --omit=dev
 
 # Copy application code
-COPY . .
+COPY services/auth-service/. ./
+# Copy shared folder from root
+COPY shared ./shared
 
 # Create logs directory
 RUN mkdir -p logs

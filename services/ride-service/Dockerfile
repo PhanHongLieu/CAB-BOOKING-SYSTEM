@@ -9,6 +9,6 @@ COPY . .
 
 RUN mkdir -p logs
 
-EXPOSE 3002
+EXPOSE 3007
 
 CMD ["node", "server.js"]
