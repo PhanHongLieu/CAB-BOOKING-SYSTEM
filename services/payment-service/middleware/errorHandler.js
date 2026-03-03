@@ -1,6 +1,5 @@
-const logger = require('../../shared/logger');
-const { AppError } = require('../../shared/errors');
-
+const logger = require('../../../shared/logger');
+const { AppError } = require('../../../shared/errors');
 exports.errorHandler = (err, req, res, next) => {
   let error = { ...err };
   error.message = err.message;
