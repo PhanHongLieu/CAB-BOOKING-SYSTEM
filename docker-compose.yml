@@ -57,21 +57,21 @@ services:
       timeout: 5s
       retries: 5
 
-  mongodb-payment:
-    image: mongo:7.0
-    container_name: cab-mongodb-payment
+  postgres-payment:
+    image: postgres:16-alpine
+    container_name: cab-postgres-payment
     ports:
-      - "27021:27017"
+      - "5432:5432"
     environment:
-      MONGO_INITDB_ROOT_USERNAME: admin
-      MONGO_INITDB_ROOT_PASSWORD: admin123
-      MONGO_INITDB_DATABASE: payment_db
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin123
+      POSTGRES_DB: payment_db
     volumes:
-      - mongodb_payment_data:/data/db
+      - postgres_payment_data:/var/lib/postgresql/data
     networks:
       - cab-network
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      test: ["CMD", "pg_isready", "-U", "admin"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -305,7 +305,12 @@ services:
       - NODE_ENV=development
       - PORT=3004
       - SERVICE_NAME=payment-service
-      - MONGODB_URI=mongodb://admin:admin123@mongodb-payment:27017/payment_db?authSource=admin
+      - DATABASE_URL=postgresql://admin:admin123@postgres-payment:5432/payment_db
+      - DB_HOST=postgres-payment
+      - DB_PORT=5432
+      - DB_USER=admin
+      - DB_PASSWORD=admin123
+      - DB_NAME=payment_db
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - RABBITMQ_URL=amqp://admin:admin123@rabbitmq:5672
@@ -315,10 +320,14 @@ services:
       - JAEGER_AGENT_HOST=jaeger
       - JAEGER_AGENT_PORT=6831
     depends_on:
-      - mongodb-payment
-      - redis
-      - rabbitmq
-      - auth-service
+      postgres-payment:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      auth-service:
+        condition: service_started
     networks:
       - cab-network
     restart: unless-stopped
@@ -453,7 +462,7 @@ volumes:
   mongodb_auth_data:
   mongodb_booking_data:
   mongodb_driver_data:
-  mongodb_payment_data:
+  postgres_payment_data:
   mongodb_notification_data:
   mongodb_ride_data:
   redis_data:

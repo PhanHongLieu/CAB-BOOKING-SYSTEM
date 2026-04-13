@@ -1,10 +1,10 @@
 const Payment = require('../models/Payment.model');
-const HttpClient = require('../../shared/httpClient');
-const { NotFoundError, ValidationError } = require('../../shared/errors');
-const logger = require('../../shared/logger');
-const { getEventBus } = require('../../shared/eventBus');
-const { PAYMENT_EVENTS } = require('../../shared/events');
-const { recordEventPublished } = require('../../shared/metrics');
+const HttpClient = require('../../../shared/httpClient');
+const { NotFoundError, ValidationError } = require('../../../shared/errors');
+const logger = require('../../../shared/logger'); 
+const { getEventBus } = require('../../../shared/eventBus');
+const { PAYMENT_EVENTS } = require('../../../shared/events'); 
+const { recordEventPublished } = require('../../../shared/metrics'); 
 
 const authClient = new HttpClient(process.env.AUTH_SERVICE_URL || 'http://localhost:3001');
 const bookingClient = new HttpClient(process.env.BOOKING_SERVICE_URL || 'http://localhost:3002');
@@ -49,13 +49,12 @@ exports.createPayment = async (req, res, next) => {
       // For now, simulate payment processing
       setTimeout(async () => {
         try {
-          payment.status = 'completed';
-          await payment.save();
+          await payment.update({ status: 'completed' });
 
           // Publish payment.completed event
           const eventBus = getEventBus();
           await eventBus.publish(PAYMENT_EVENTS.PAYMENT_COMPLETED, {
-            paymentId: payment._id.toString(),
+            paymentId: payment.id,
             bookingId: bookingId,
             customerId: userId,
             amount: payment.amount,
@@ -63,17 +62,16 @@ exports.createPayment = async (req, res, next) => {
           });
           recordEventPublished(PAYMENT_EVENTS.PAYMENT_COMPLETED, 'payment-service');
 
-          logger.info(`Payment completed: ${payment._id} for booking ${bookingId}`);
+          logger.info(`Payment completed: ${payment.id} for booking ${bookingId}`);
         } catch (error) {
           logger.error('Error processing payment:', error);
           
           // Publish payment.failed event
-          payment.status = 'failed';
-          await payment.save();
+          await payment.update({ status: 'failed' });
           
           const eventBus = getEventBus();
           await eventBus.publish(PAYMENT_EVENTS.PAYMENT_FAILED, {
-            paymentId: payment._id.toString(),
+            paymentId: payment.id,
             bookingId: bookingId,
             customerId: userId,
             reason: error.message
@@ -83,7 +81,7 @@ exports.createPayment = async (req, res, next) => {
       }, 2000);
     }
 
-    logger.info(`Payment created: ${payment._id} for booking ${bookingId}`);
+    logger.info(`Payment created: ${payment.id} for booking ${bookingId}`);
 
     res.status(201).json({
       success: true,
@@ -98,23 +96,23 @@ exports.getPayments = async (req, res, next) => {
   try {
     const userId = req.user.userId;
     const { page = 1, limit = 10 } = req.query;
+    const offset = (page - 1) * limit;
 
-    const payments = await Payment.find({ customerId: userId })
-      .sort({ createdAt: -1 })
-      .limit(limit * 1)
-      .skip((page - 1) * limit)
-      .populate('bookingId', 'pickupLocation dropoffLocation fare');
-
-    const total = await Payment.countDocuments({ customerId: userId });
+    const { count, rows } = await Payment.findAndCountAll({
+      where: { customerId: userId },
+      offset: offset,
+      limit: parseInt(limit),
+      order: [['createdAt', 'DESC']]
+    });
 
     res.json({
       success: true,
-      data: payments,
+      data: rows,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
-        total,
-        pages: Math.ceil(total / limit)
+        total: count,
+        pages: Math.ceil(count / limit)
       }
     });
   } catch (error) {
@@ -127,13 +125,13 @@ exports.getPayment = async (req, res, next) => {
     const { id } = req.params;
     const userId = req.user.userId;
 
-    const payment = await Payment.findById(id).populate('bookingId');
+    const payment = await Payment.findByPk(id);
     
     if (!payment) {
       throw new NotFoundError('Payment');
     }
 
-    if (payment.customerId.toString() !== userId) {
+    if (payment.customerId !== userId) {
       throw new NotFoundError('Payment');
     }
 
@@ -151,7 +149,7 @@ exports.processRefund = async (req, res, next) => {
     const { id } = req.params;
     const { amount, reason } = req.body;
 
-    const payment = await Payment.findById(id);
+    const payment = await Payment.findByPk(id);
     if (!payment) {
       throw new NotFoundError('Payment');
     }
@@ -161,19 +159,23 @@ exports.processRefund = async (req, res, next) => {
     }
 
     const refundAmount = amount || payment.amount;
-    payment.status = 'refunded';
-    payment.refundAmount = refundAmount;
-    payment.refundedAt = new Date();
-    payment.metadata = { ...payment.metadata, refundReason: reason };
-    await payment.save();
+    const metadata = payment.metadata || {};
+    metadata.refundReason = reason;
+
+    await payment.update({
+      status: 'refunded',
+      refundAmount: refundAmount,
+      refundedAt: new Date(),
+      metadata: metadata
+    });
 
     // Publish payment.refunded event
     try {
       const eventBus = getEventBus();
       await eventBus.publish(PAYMENT_EVENTS.PAYMENT_REFUNDED, {
-        paymentId: payment._id.toString(),
-        bookingId: payment.bookingId.toString(),
-        customerId: payment.customerId.toString(),
+        paymentId: payment.id,
+        bookingId: payment.bookingId,
+        customerId: payment.customerId,
         refundAmount,
         reason
       });
