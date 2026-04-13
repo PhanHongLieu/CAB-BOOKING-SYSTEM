@@ -27,7 +27,8 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /app
+# Keep the same folder layout as local development so relative imports to ../../shared work.
+WORKDIR /workspace/services/auth-service
 
 # Create non-root user
 RUN groupadd -g 1001 nodejs && useradd -u 1001 -g nodejs nodejs
