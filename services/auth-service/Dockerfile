@@ -11,6 +11,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
+RUN npm init -y && npm install --omit=dev axios amqplib prom-client jaeger-client opentracing winston
 
 COPY package*.json ./
 COPY prisma ./prisma/

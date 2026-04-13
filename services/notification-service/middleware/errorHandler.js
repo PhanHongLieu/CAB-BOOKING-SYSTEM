@@ -13,7 +13,9 @@ exports.errorHandler = (err, req, res, next) => {
     error = new AppError('Duplicate field value entered', 400);
   }
   if (err.name === 'ValidationError') {
-    const message = Object.values(err.errors).map(val => val.message).join(', ');
+    const message = err.errors
+      ? Object.values(err.errors).map(val => val.message).join(', ')
+      : err.message;
     error = new AppError(message, 400);
   }
 
