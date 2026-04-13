@@ -577,10 +577,7 @@ services:
       - PAYMENT_SERVICE_URL=http://payment-service:3004
       - NOTIFICATION_SERVICE_URL=http://notification-service:3005
       - LOCATION_SERVICE_URL=http://location-service:3006
-      - PRICING_SERVICE_URL=http://pricing-service:3007
-      - USER_SERVICE_URL=http://user-service:3008
-      - REVIEW_SERVICE_URL=http://review-service:3009
-      - RIDE_SERVICE_URL=http://ride-service:3010
+      - REVIEW_SERVICE_URL=http://review-service:3007
     depends_on:
       - auth-service
       - booking-service
@@ -627,6 +624,7 @@ volumes:
   rabbitmq_data:
   prometheus_data:
   grafana_data:
+  postgres_review_data:
 
 networks:
   cab-network:

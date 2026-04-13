@@ -1,5 +1,5 @@
 const logger = require('../../../shared/logger');
-const { AppError, UnauthorizedError } = require('../../../shared/errors');
+const { AppError } = require('../../../shared/errors');
 
 exports.errorHandler = (err, req, res, next) => {
   let error = { ...err };

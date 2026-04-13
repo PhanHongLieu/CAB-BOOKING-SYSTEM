@@ -47,10 +47,7 @@ app.get('/health', (req, res) => {
       payment: process.env.PAYMENT_SERVICE_URL,
       notification: process.env.NOTIFICATION_SERVICE_URL,
       location: process.env.LOCATION_SERVICE_URL,
-      pricing: process.env.PRICING_SERVICE_URL,
-      user: process.env.USER_SERVICE_URL,
-      review: process.env.REVIEW_SERVICE_URL,
-      ride: process.env.RIDE_SERVICE_URL
+      review: process.env.REVIEW_SERVICE_URL
     }
   });
 });
@@ -118,48 +115,13 @@ const services = {
   '/api/location': {
     target: process.env.LOCATION_SERVICE_URL || 'http://localhost:3006',
     changeOrigin: true,
-    pathRewrite: { '^/api/location': '/api/location' },
-    onProxyReq: fixRequestBody
-  },
-  '/api/pricing': {
-    target: process.env.PRICING_SERVICE_URL || 'http://localhost:3007',
-    changeOrigin: true,
-    pathRewrite: { '^/api/pricing': '/api/pricing' },
-    onProxyReq: (proxyReq, req, res) => {
-      fixRequestBody(proxyReq, req, res);
-      if (req.headers.authorization) {
-        proxyReq.setHeader('Authorization', req.headers.authorization);
-      }
-    }
-  },
-  '/api/users': {
-    target: process.env.USER_SERVICE_URL || 'http://localhost:3008',
-    changeOrigin: true,
-    pathRewrite: { '^/api/users': '/api/users' },
-    onProxyReq: (proxyReq, req, res) => {
-      fixRequestBody(proxyReq, req, res);
-      if (req.headers.authorization) {
-        proxyReq.setHeader('Authorization', req.headers.authorization);
-      }
-    }
+    pathRewrite: { '^/api/location': '/api/location' }
   },
   '/api/reviews': {
-    target: process.env.REVIEW_SERVICE_URL || 'http://localhost:3009',
+    target: process.env.REVIEW_SERVICE_URL || 'http://localhost:3007',
     changeOrigin: true,
     pathRewrite: { '^/api/reviews': '/api/reviews' },
     onProxyReq: (proxyReq, req, res) => {
-      fixRequestBody(proxyReq, req, res);
-      if (req.headers.authorization) {
-        proxyReq.setHeader('Authorization', req.headers.authorization);
-      }
-    }
-  },
-  '/api/rides': {
-    target: process.env.RIDE_SERVICE_URL || 'http://localhost:3010',
-    changeOrigin: true,
-    pathRewrite: { '^/api/rides': '/api/rides' },
-    onProxyReq: (proxyReq, req, res) => {
-      fixRequestBody(proxyReq, req, res);
       if (req.headers.authorization) {
         proxyReq.setHeader('Authorization', req.headers.authorization);
       }
