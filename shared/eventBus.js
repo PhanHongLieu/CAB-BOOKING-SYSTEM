@@ -1,4 +1,5 @@
-const amqp = require('amqplib');
+const loadDependency = require('./loadDependency');
+const amqp = loadDependency('amqplib');
 const logger = require('./logger');
 
 class EventBus {

@@ -1,4 +1,5 @@
-const winston = require('winston');
+const loadDependency = require('./loadDependency');
+const winston = loadDependency('winston');
 
 const logger = winston.createLogger({
   level: process.env.LOG_LEVEL || 'info',

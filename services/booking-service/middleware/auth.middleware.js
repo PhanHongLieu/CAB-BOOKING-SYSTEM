@@ -1,5 +1,5 @@
-const HttpClient = require('../../shared/httpClient');
-const { UnauthorizedError } = require('../../shared/errors');
+const HttpClient = require('../../../shared/httpClient');
+const { UnauthorizedError } = require('../../../shared/errors');
 
 const authClient = new HttpClient(process.env.AUTH_SERVICE_URL || 'http://localhost:3001');
 

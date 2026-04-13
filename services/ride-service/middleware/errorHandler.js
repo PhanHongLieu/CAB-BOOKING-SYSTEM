@@ -1,6 +1,5 @@
-const path = require('path');
-const logger = require(path.resolve(__dirname, '../shared/logger.js'));
-const { AppError } = require(path.resolve(__dirname, '../shared/errors.js'));
+const logger = require('../../../shared/logger');
+const { AppError } = require('../../../shared/errors');
 
 exports.errorHandler = (err, req, res, next) => {
   let error = { ...err };

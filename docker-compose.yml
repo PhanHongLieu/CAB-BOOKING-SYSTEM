@@ -234,8 +234,8 @@ services:
   # Booking Service
   booking-service:
     build:
-      context: ./services/booking-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/booking-service/Dockerfile
     container_name: cab-booking-service
     ports:
       - "3002:3002"
@@ -416,8 +416,8 @@ services:
   # API Gateway
   api-gateway:
     build:
-      context: ./api-gateway
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: api-gateway/Dockerfile
     container_name: cab-api-gateway
     ports:
       - "8000:8000"

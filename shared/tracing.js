@@ -1,5 +1,6 @@
-const opentracing = require('opentracing');
-const jaeger = require('jaeger-client');
+const loadDependency = require('./loadDependency');
+const opentracing = loadDependency('opentracing');
+const jaeger = loadDependency('jaeger-client');
 const logger = require('./logger');
 
 // Initialize Jaeger tracer
