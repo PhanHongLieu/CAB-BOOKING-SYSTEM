@@ -28,6 +28,14 @@ module.exports = {
     PAYMENT_REFUNDED: 'payment.refunded'
   },
   
+  // Ride Events (for ride service & geo updates)
+  RIDE_EVENTS: {
+    RIDE_CREATED: 'ride.created',
+    RIDE_ASSIGNED: 'ride.assigned',
+    DRIVER_LOCATION_UPDATED: 'driver.location.updated',
+    RIDE_STATUS_CHANGED: 'ride.status.changed'
+  },
+  
   // Notification Events
   NOTIFICATION_EVENTS: {
     NOTIFICATION_SENT: 'notification.sent',

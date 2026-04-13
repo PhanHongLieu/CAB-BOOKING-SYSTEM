@@ -3,7 +3,7 @@ const HttpClient = require('../../shared/httpClient');
 const { ValidationError, NotFoundError } = require('../../shared/errors');
 const logger = require('../../shared/logger');
 const { getEventBus } = require('../../shared/eventBus');
-const { BOOKING_EVENTS } = require('../../shared/events');
+const { BOOKING_EVENTS, RIDE_EVENTS } = require('../../shared/events');
 const { recordEventPublished } = require('../../shared/metrics');
 
 const authClient = new HttpClient(process.env.AUTH_SERVICE_URL || 'http://localhost:3001');
@@ -92,8 +92,24 @@ exports.createBooking = async (req, res, next) => {
         }
       );
       recordEventPublished(BOOKING_EVENTS.BOOKING_CREATED, 'booking-service');
+
+      // also produce ride.created event for downstream services
+      await eventBus.publish(
+        RIDE_EVENTS.RIDE_CREATED,
+        {
+          bookingId: booking._id.toString(),
+          customerId: userId,
+          pickupLocation,
+          dropoffLocation,
+          fare: booking.fare,
+          vehicleType: booking.vehicleType,
+          distance,
+          estimatedDuration: duration
+        }
+      );
+      recordEventPublished(RIDE_EVENTS.RIDE_CREATED, 'booking-service');
     } catch (error) {
-      logger.error('Error publishing booking.created event:', error);
+      logger.error('Error publishing booking or ride created events:', error);
       // Continue even if event publishing fails
     }
 
