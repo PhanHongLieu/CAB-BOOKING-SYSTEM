@@ -84,6 +84,6 @@ const bookingSchema = new mongoose.Schema({
 bookingSchema.index({ customerId: 1, createdAt: -1 });
 bookingSchema.index({ driverId: 1, createdAt: -1 });
 bookingSchema.index({ status: 1 });
-bookingSchema.index({ 'pickupLocation.coordinates': '2dsphere' });
+bookingSchema.index({ 'pickupLocation.coordinates.lat': 1, 'pickupLocation.coordinates.lng': 1 });
 
 module.exports = mongoose.model('Booking', bookingSchema);

@@ -57,21 +57,21 @@ services:
       timeout: 5s
       retries: 5
 
-  mongodb-payment:
-    image: mongo:7.0
-    container_name: cab-mongodb-payment
+  postgres-payment:
+    image: postgres:16-alpine
+    container_name: cab-postgres-payment
     ports:
-      - "27021:27017"
+      - "5432:5432"
     environment:
-      MONGO_INITDB_ROOT_USERNAME: admin
-      MONGO_INITDB_ROOT_PASSWORD: admin123
-      MONGO_INITDB_DATABASE: payment_db
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin123
+      POSTGRES_DB: payment_db
     volumes:
-      - mongodb_payment_data:/data/db
+      - postgres_payment_data:/var/lib/postgresql/data
     networks:
       - cab-network
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      test: ["CMD", "pg_isready", "-U", "admin"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -87,6 +87,82 @@ services:
       MONGO_INITDB_DATABASE: notification_db
     volumes:
       - mongodb_notification_data:/data/db
+    networks:
+      - cab-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mongodb-pricing:
+    image: mongo:7.0
+    container_name: cab-mongodb-pricing
+    ports:
+      - "27023:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: admin123
+      MONGO_INITDB_DATABASE: pricing_db
+    volumes:
+      - mongodb_pricing_data:/data/db
+    networks:
+      - cab-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mongodb-user:
+    image: mongo:7.0
+    container_name: cab-mongodb-user
+    ports:
+      - "27024:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: admin123
+      MONGO_INITDB_DATABASE: user_db
+    volumes:
+      - mongodb_user_data:/data/db
+    networks:
+      - cab-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mongodb-review:
+    image: mongo:7.0
+    container_name: cab-mongodb-review
+    ports:
+      - "27025:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: admin123
+      MONGO_INITDB_DATABASE: review_db
+    volumes:
+      - mongodb_review_data:/data/db
+    networks:
+      - cab-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mongodb-ride:
+    image: mongo:7.0
+    container_name: cab-mongodb-ride
+    ports:
+      - "27026:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: admin123
+      MONGO_INITDB_DATABASE: ride_db
+    volumes:
+      - mongodb_ride_data:/data/db
     networks:
       - cab-network
     healthcheck:
@@ -130,50 +206,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-
-  # User Service Database (PostgreSQL)
-  postgres-user:
-    image: postgres:16-alpine
-    container_name: cab-postgres-user
-    environment:
-      POSTGRES_DB: user_db
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-    volumes:
-      - postgres_user_data:/var/lib/postgresql/data
-    networks:
-      - cab-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d user_db"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-
-  # Kafka for User Service async events
-  zookeeper:
-    image: confluentinc/cp-zookeeper:7.5.0
-    container_name: cab-zookeeper
-    environment:
-      ZOOKEEPER_CLIENT_PORT: 2181
-      ZOOKEEPER_TICK_TIME: 2000
-    networks:
-      - cab-network
-
-  kafka:
-    image: confluentinc/cp-kafka:7.5.0
-    container_name: cab-kafka
-    depends_on:
-      - zookeeper
-    environment:
-      KAFKA_BROKER_ID: 1
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
-      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
-    networks:
-      - cab-network
 
   # Prometheus - Metrics Collection
   prometheus:
@@ -227,8 +259,8 @@ services:
   # Auth Service
   auth-service:
     build:
-      context: ./services/auth-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/auth-service/Dockerfile
     container_name: cab-auth-service
     ports:
       - "3001:3001"
@@ -259,8 +291,8 @@ services:
   # Booking Service
   booking-service:
     build:
-      context: ./services/booking-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/booking-service/Dockerfile
     container_name: cab-booking-service
     ports:
       - "3002:3002"
@@ -291,8 +323,8 @@ services:
   # Driver Service
   driver-service:
     build:
-      context: ./services/driver-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/driver-service/Dockerfile
     container_name: cab-driver-service
     ports:
       - "3003:3003"
@@ -330,7 +362,12 @@ services:
       - NODE_ENV=development
       - PORT=3004
       - SERVICE_NAME=payment-service
-      - MONGODB_URI=mongodb://admin:admin123@mongodb-payment:27017/payment_db?authSource=admin
+      - DATABASE_URL=postgresql://admin:admin123@postgres-payment:5432/payment_db
+      - DB_HOST=postgres-payment
+      - DB_PORT=5432
+      - DB_USER=admin
+      - DB_PASSWORD=admin123
+      - DB_NAME=payment_db
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - RABBITMQ_URL=amqp://admin:admin123@rabbitmq:5672
@@ -340,10 +377,14 @@ services:
       - JAEGER_AGENT_HOST=jaeger
       - JAEGER_AGENT_PORT=6831
     depends_on:
-      - mongodb-payment
-      - redis
-      - rabbitmq
-      - auth-service
+      postgres-payment:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      auth-service:
+        condition: service_started
     networks:
       - cab-network
     restart: unless-stopped
@@ -351,8 +392,8 @@ services:
   # Notification Service
   notification-service:
     build:
-      context: ./services/notification-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/notification-service/Dockerfile
     container_name: cab-notification-service
     ports:
       - "3005:3005"
@@ -365,6 +406,7 @@ services:
       - MONGODB_URI=mongodb://admin:admin123@mongodb-notification:27017/notification_db?authSource=admin
       - RABBITMQ_URL=amqp://admin:admin123@rabbitmq:5672
       - EVENT_EXCHANGE=cab_booking_events
+      - JWT_SECRET=your-super-secret-jwt-key-change-in-production
       - JAEGER_AGENT_HOST=jaeger
       - JAEGER_AGENT_PORT=6831
     depends_on:
@@ -400,34 +442,120 @@ services:
       - cab-network
     restart: unless-stopped
 
-  # User Service (Profile only)
+  # Pricing Service
+  pricing-service:
+    build:
+      context: ./services/pricing-service
+      dockerfile: Dockerfile
+    container_name: cab-pricing-service
+    ports:
+      - "3007:3007"
+    environment:
+      - NODE_ENV=development
+      - PORT=3007
+      - SERVICE_NAME=pricing-service
+      - MONGODB_URI=mongodb://admin:admin123@mongodb-pricing:27017/pricing_db?authSource=admin
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - RABBITMQ_URL=amqp://admin:admin123@rabbitmq:5672
+      - EVENT_EXCHANGE=cab_booking_events
+      - AUTH_SERVICE_URL=http://auth-service:3001
+      - JAEGER_AGENT_HOST=jaeger
+      - JAEGER_AGENT_PORT=6831
+    depends_on:
+      - mongodb-pricing
+      - redis
+      - rabbitmq
+      - auth-service
+    networks:
+      - cab-network
+    restart: unless-stopped
+
+  # User Service
   user-service:
     build:
       context: ./services/user-service
       dockerfile: Dockerfile
     container_name: cab-user-service
     ports:
-      - "3010:3002"
-    env_file:
-      - ./services/user-service/.env
+      - "3008:3008"
     environment:
       - NODE_ENV=development
-      - PORT=3002
+      - PORT=3008
       - SERVICE_NAME=user-service
-      - DB_HOST=postgres-user
-      - DB_PORT=5432
-      - DB_NAME=user_db
-      - DB_USER=postgres
-      - DB_PASSWORD=postgres
-      - KAFKA_BROKERS=kafka:9092
-      - KAFKA_USER_EVENTS_TOPIC=user-events
-      - KAFKA_GROUP_ID=user-service-group
-      - KAFKAJS_NO_PARTITIONER_WARNING=1
+      - MONGODB_URI=mongodb://admin:admin123@mongodb-user:27017/user_db?authSource=admin
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - RABBITMQ_URL=amqp://admin:admin123@rabbitmq:5672
+      - EVENT_EXCHANGE=cab_booking_events
+      - AUTH_SERVICE_URL=http://auth-service:3001
+      - JAEGER_AGENT_HOST=jaeger
+      - JAEGER_AGENT_PORT=6831
     depends_on:
-      postgres-user:
-        condition: service_healthy
-      kafka:
-        condition: service_started
+      - mongodb-user
+      - redis
+      - rabbitmq
+      - auth-service
+    networks:
+      - cab-network
+    restart: unless-stopped
+
+  # Review Service
+  review-service:
+    build:
+      context: ./services/review-service
+      dockerfile: Dockerfile
+    container_name: cab-review-service
+    ports:
+      - "3009:3009"
+    environment:
+      - NODE_ENV=development
+      - PORT=3009
+      - SERVICE_NAME=review-service
+      - MONGODB_URI=mongodb://admin:admin123@mongodb-review:27017/review_db?authSource=admin
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - RABBITMQ_URL=amqp://admin:admin123@rabbitmq:5672
+      - EVENT_EXCHANGE=cab_booking_events
+      - AUTH_SERVICE_URL=http://auth-service:3001
+      - RIDE_SERVICE_URL=http://ride-service:3010
+      - JAEGER_AGENT_HOST=jaeger
+      - JAEGER_AGENT_PORT=6831
+    depends_on:
+      - mongodb-review
+      - redis
+      - rabbitmq
+      - auth-service
+      - ride-service
+    networks:
+      - cab-network
+    restart: unless-stopped
+
+  # Ride Service
+  ride-service:
+    build:
+      context: ./services/ride-service
+      dockerfile: Dockerfile
+    container_name: cab-ride-service
+    ports:
+      - "3010:3010"
+    environment:
+      - NODE_ENV=development
+      - PORT=3010
+      - SERVICE_NAME=ride-service
+      - MONGODB_URI=mongodb://admin:admin123@mongodb-ride:27017/ride_db?authSource=admin
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - RABBITMQ_URL=amqp://admin:admin123@rabbitmq:5672
+      - EVENT_EXCHANGE=cab_booking_events
+      - AUTH_SERVICE_URL=http://auth-service:3001
+      - JAEGER_AGENT_HOST=jaeger
+      - JAEGER_AGENT_PORT=6831
+    depends_on:
+      - mongodb-ride
+      - redis
+      - rabbitmq
+      - auth-service
     networks:
       - cab-network
     restart: unless-stopped
@@ -435,8 +563,8 @@ services:
   # API Gateway
   api-gateway:
     build:
-      context: ./api-gateway
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: api-gateway/Dockerfile
     container_name: cab-api-gateway
     ports:
       - "8000:8000"
@@ -444,20 +572,23 @@ services:
       - NODE_ENV=development
       - PORT=8000
       - AUTH_SERVICE_URL=http://auth-service:3001
-      - USER_SERVICE_URL=http://user-service:3002
       - BOOKING_SERVICE_URL=http://booking-service:3002
       - DRIVER_SERVICE_URL=http://driver-service:3003
       - PAYMENT_SERVICE_URL=http://payment-service:3004
       - NOTIFICATION_SERVICE_URL=http://notification-service:3005
       - LOCATION_SERVICE_URL=http://location-service:3006
+      - REVIEW_SERVICE_URL=http://review-service:3007
     depends_on:
       - auth-service
-      - user-service
       - booking-service
       - driver-service
       - payment-service
       - notification-service
       - location-service
+      - pricing-service
+      - user-service
+      - review-service
+      - ride-service
     networks:
       - cab-network
     restart: unless-stopped
@@ -483,13 +614,17 @@ volumes:
   mongodb_auth_data:
   mongodb_booking_data:
   mongodb_driver_data:
-  mongodb_payment_data:
+  postgres_payment_data:
   mongodb_notification_data:
+  mongodb_pricing_data:
+  mongodb_user_data:
+  mongodb_review_data:
+  mongodb_ride_data:
   redis_data:
   rabbitmq_data:
-  postgres_user_data:
   prometheus_data:
   grafana_data:
+  postgres_review_data:
 
 networks:
   cab-network:

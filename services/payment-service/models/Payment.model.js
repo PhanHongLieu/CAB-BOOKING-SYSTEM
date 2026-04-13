@@ -1,63 +1,78 @@
-const mongoose = require('mongoose');
+const { DataTypes } = require('sequelize');
+const sequelize = require('../config/database');
 
-const paymentSchema = new mongoose.Schema({
+const Payment = sequelize.define('Payment', {
+  id: {
+    type: DataTypes.UUID,
+    defaultValue: DataTypes.UUIDV4,
+    primaryKey: true,
+  },
   bookingId: {
-    type: mongoose.Schema.Types.ObjectId,
-    required: true,
-    ref: 'Booking'
+    type: DataTypes.STRING,
+    allowNull: false,
   },
   customerId: {
-    type: mongoose.Schema.Types.ObjectId,
-    required: true,
-    ref: 'User'
+    type: DataTypes.STRING,
+    allowNull: false,
   },
   amount: {
-    type: Number,
-    required: true
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: false,
   },
   currency: {
-    type: String,
-    default: 'VND'
+    type: DataTypes.STRING,
+    defaultValue: 'VND',
   },
   paymentMethod: {
-    type: String,
-    enum: ['cash', 'card', 'wallet', 'bank_transfer'],
-    required: true
+    type: DataTypes.ENUM('cash', 'card', 'wallet', 'bank_transfer'),
+    allowNull: false,
   },
   status: {
-    type: String,
-    enum: ['pending', 'processing', 'completed', 'failed', 'refunded'],
-    default: 'pending'
+    type: DataTypes.ENUM('pending', 'processing', 'completed', 'failed', 'refunded'),
+    defaultValue: 'pending',
   },
   transactionId: {
-    type: String,
+    type: DataTypes.STRING,
     unique: true,
-    sparse: true
+    sparse: true,
   },
   paymentGateway: {
-    type: String,
-    enum: ['stripe', 'paypal', 'vnpay', 'momo', 'cash'],
-    default: 'cash'
+    type: DataTypes.ENUM('stripe', 'paypal', 'vnpay', 'momo', 'cash'),
+    defaultValue: 'cash',
   },
   gatewayResponse: {
-    type: mongoose.Schema.Types.Mixed
+    type: DataTypes.JSONB,
+    defaultValue: {},
   },
   refundAmount: {
-    type: Number,
-    default: 0
+    type: DataTypes.DECIMAL(10, 2),
+    defaultValue: 0,
   },
   refundedAt: {
-    type: Date
+    type: DataTypes.DATE,
+    allowNull: true,
   },
   metadata: {
-    type: mongoose.Schema.Types.Mixed
-  }
+    type: DataTypes.JSONB,
+    defaultValue: {},
+  },
+  createdAt: {
+    type: DataTypes.DATE,
+    defaultValue: DataTypes.NOW,
+  },
+  updatedAt: {
+    type: DataTypes.DATE,
+    defaultValue: DataTypes.NOW,
+  },
 }, {
-  timestamps: true
+  tableName: 'payments',
+  timestamps: true,
+  indexes: [
+    { fields: ['bookingId'] },
+    { fields: ['customerId', 'createdAt'] },
+    { fields: ['transactionId'] },
+    { fields: ['status'] },
+  ],
 });
 
-paymentSchema.index({ bookingId: 1 });
-paymentSchema.index({ customerId: 1, createdAt: -1 });
-paymentSchema.index({ transactionId: 1 });
-
-module.exports = mongoose.model('Payment', paymentSchema);
+module.exports = Payment;

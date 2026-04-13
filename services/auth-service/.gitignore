@@ -1,0 +1,24 @@
+# Auth Service
+
+node_modules/
+.env
+*.log
+logs/
+coverage/
+dist/
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/
+
+# Prisma
+prisma/migrations/
+
+# Test
+__tests__/
+*.test.js
+
+# Docker
+docker-compose.override.yml

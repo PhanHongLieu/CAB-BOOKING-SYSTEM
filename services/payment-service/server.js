@@ -1,5 +1,4 @@
 const express = require('express');
-const mongoose = require('mongoose');
 const cors = require('cors');
 const helmet = require('helmet');
 require('dotenv').config();
@@ -12,6 +11,7 @@ const { getEventBus } = require('../../shared/eventBus');
 const { BOOKING_EVENTS, PAYMENT_EVENTS } = require('../../shared/events');
 const paymentRoutes = require('./routes/payment.routes');
 const eventHandlers = require('./events/eventHandlers');
+const { initDatabase, sequelize } = require('./database/init');
 
 const app = express();
 const PORT = process.env.PORT || 3004;
@@ -66,32 +66,40 @@ async function initializeEventBus() {
   }
 }
 
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/payment_db', {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
-.then(async () => {
-  logger.info('MongoDB connected successfully');
-  
-  // Initialize Event Bus
-  await initializeEventBus();
-  
-  app.listen(PORT, () => {
-    logger.info(`Payment Service running on port ${PORT}`);
-  });
-})
-.catch((error) => {
-  logger.error('MongoDB connection error:', error);
-  process.exit(1);
-});
+// Initialize application
+async function startServer() {
+  try {
+    // Initialize database
+    await initDatabase();
+    logger.info('Database initialized successfully');
+    
+    // Initialize Event Bus
+    await initializeEventBus();
+    
+    // Start server
+    app.listen(PORT, () => {
+      logger.info(`Payment Service running on port ${PORT}`);
+    });
+  } catch (error) {
+    logger.error('Failed to start Payment Service:', error);
+    process.exit(1);
+  }
+}
+
+startServer();
 
 // Graceful shutdown
 process.on('SIGTERM', async () => {
   logger.info('SIGTERM received, shutting down gracefully');
-  const eventBus = getEventBus();
-  await eventBus.close();
-  mongoose.connection.close();
-  process.exit(0);
+  try {
+    const eventBus = getEventBus();
+    await eventBus.close();
+    await sequelize.close();
+    process.exit(0);
+  } catch (error) {
+    logger.error('Error during graceful shutdown:', error);
+    process.exit(1);
+  }
 });
 
 module.exports = app;

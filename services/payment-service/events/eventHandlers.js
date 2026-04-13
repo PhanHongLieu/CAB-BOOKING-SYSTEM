@@ -11,7 +11,7 @@ exports.handleBookingCompleted = async (event) => {
     recordEventConsumed(eventType, 'payment-service');
 
     // Check if payment already exists
-    const existingPayment = await Payment.findOne({ bookingId: data.bookingId });
+    const existingPayment = await Payment.findOne({ where: { bookingId: data.bookingId } });
     if (existingPayment) {
       logger.info(`Payment already exists for booking ${data.bookingId}`);
       return;
@@ -31,7 +31,7 @@ exports.handleBookingCompleted = async (event) => {
     // Publish payment.initiated event
     const eventBus = getEventBus();
     await eventBus.publish(PAYMENT_EVENTS.PAYMENT_INITIATED, {
-      paymentId: payment._id.toString(),
+      paymentId: payment.id,
       bookingId: data.bookingId,
       customerId: data.customerId,
       amount: data.fare.total

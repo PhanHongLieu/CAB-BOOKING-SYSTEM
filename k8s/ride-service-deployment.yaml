@@ -1,0 +1,139 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ride-service
+  namespace: cab-system
+  labels:
+    app: ride-service
+    version: v1
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ride-service
+  template:
+    metadata:
+      labels:
+        app: ride-service
+        version: v1
+    spec:
+      containers:
+      - name: ride-service
+        image: cab-booking/ride-service:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 3007
+          name: http
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: PORT
+          value: "3007"
+        - name: SERVICE_NAME
+          value: "ride-service"
+        - name: MONGODB_URI
+          valueFrom:
+            secretKeyRef:
+              name: cab-secrets
+              key: mongodb-ride-uri
+        - name: REDIS_HOST
+          value: "redis"
+        - name: REDIS_PORT
+          value: "6379"
+        - name: RABBITMQ_URL
+          valueFrom:
+            secretKeyRef:
+              name: cab-secrets
+              key: rabbitmq-url
+        - name: EVENT_EXCHANGE
+          value: "cab_booking_events"
+        - name: AUTH_SERVICE_URL
+          value: "http://auth-service:3001"
+        - name: JAEGER_AGENT_HOST
+          value: "jaeger"
+        - name: JAEGER_AGENT_PORT
+          value: "6831"
+        - name: FRONTEND_URL
+          value: "https://app.example.com"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 3007
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 3007
+          initialDelaySeconds: 20
+          periodSeconds: 5
+          timeoutSeconds: 3
+        volumeMounts:
+        - name: logs
+          mountPath: /app/logs
+      volumes:
+      - name: logs
+        emptyDir: {}
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ride-service
+  namespace: cab-system
+  labels:
+    app: ride-service
+spec:
+  selector:
+    app: ride-service
+  type: ClusterIP
+  ports:
+  - protocol: TCP
+    port: 3007
+    targetPort: 3007
+    name: http
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: ride-service-hpa
+  namespace: cab-system
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: ride-service
+  minReplicas: 2
+  maxReplicas: 5
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: ride-service-pdb
+  namespace: cab-system
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: ride-service
