@@ -1,21 +1,49 @@
-FROM node:18-alpine
+# =======================
+# Auth Service Dockerfile
+# =======================
+
+# ---------- Build stage ----------
+FROM node:18-slim AS builder
+
+RUN apt-get update && apt-get install -y \
+    openssl \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
+RUN npm init -y && npm install --omit=dev axios amqplib prom-client jaeger-client opentracing winston
 
-# Copy package files
+COPY package*.json ./
+COPY prisma ./prisma/
+
+RUN npm ci --only=production
+RUN npx prisma generate
+
+# ---------- Production stage ----------
+FROM node:18-slim
+
+RUN apt-get update && apt-get install -y \
+    openssl \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Keep the same folder layout as local development so relative imports to ../../shared work.
+WORKDIR /workspace/services/auth-service
+
+# Create non-root user
+RUN groupadd -g 1001 nodejs && useradd -u 1001 -g nodejs nodejs
+
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/prisma ./prisma
+COPY src ./src
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci --only=production
+RUN chown -R nodejs:nodejs /app
+USER nodejs
 
-# Copy application code
-COPY . .
-
-# Create logs directory
-RUN mkdir -p logs
-
-# Expose port
 EXPOSE 3001
 
-# Start application
-CMD ["node", "server.js"]
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3001/health || exit 1
+
+CMD ["node", "src/server.js"]

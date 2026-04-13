@@ -24,5 +24,6 @@ router.post('/login', loginValidation, authController.login);
 router.post('/refresh-token', authController.refreshToken);
 router.post('/logout', authenticate, authController.logout);
 router.get('/verify', authController.verifyToken);
+router.post('/dev/seed-review-users', authController.seedReviewTestUsers);
 
 module.exports = router;

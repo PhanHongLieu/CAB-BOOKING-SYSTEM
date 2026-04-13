@@ -1,5 +1,5 @@
 const express = require('express');
-const { createProxyMiddleware } = require('http-proxy-middleware');
+const { createProxyMiddleware, fixRequestBody } = require('http-proxy-middleware');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
@@ -46,7 +46,8 @@ app.get('/health', (req, res) => {
       driver: process.env.DRIVER_SERVICE_URL,
       payment: process.env.PAYMENT_SERVICE_URL,
       notification: process.env.NOTIFICATION_SERVICE_URL,
-      location: process.env.LOCATION_SERVICE_URL
+      location: process.env.LOCATION_SERVICE_URL,
+      review: process.env.REVIEW_SERVICE_URL
     }
   });
 });
@@ -62,7 +63,8 @@ const services = {
   '/api/auth': {
     target: process.env.AUTH_SERVICE_URL || 'http://localhost:3001',
     changeOrigin: true,
-    pathRewrite: { '^/api/auth': '/api' },
+    pathRewrite: { '^/api/auth': '/api/auth' },
+    onProxyReq: fixRequestBody,
     logLevel: 'debug'
   },
   '/api/bookings': {
@@ -70,6 +72,7 @@ const services = {
     changeOrigin: true,
     pathRewrite: { '^/api/bookings': '/api/bookings' },
     onProxyReq: (proxyReq, req, res) => {
+      fixRequestBody(proxyReq, req, res);
       // Forward authentication token
       if (req.headers.authorization) {
         proxyReq.setHeader('Authorization', req.headers.authorization);
@@ -81,6 +84,7 @@ const services = {
     changeOrigin: true,
     pathRewrite: { '^/api/drivers': '/api/drivers' },
     onProxyReq: (proxyReq, req, res) => {
+      fixRequestBody(proxyReq, req, res);
       if (req.headers.authorization) {
         proxyReq.setHeader('Authorization', req.headers.authorization);
       }
@@ -91,6 +95,7 @@ const services = {
     changeOrigin: true,
     pathRewrite: { '^/api/payments': '/api/payments' },
     onProxyReq: (proxyReq, req, res) => {
+      fixRequestBody(proxyReq, req, res);
       if (req.headers.authorization) {
         proxyReq.setHeader('Authorization', req.headers.authorization);
       }
@@ -101,6 +106,7 @@ const services = {
     changeOrigin: true,
     pathRewrite: { '^/api/notifications': '/api/notifications' },
     onProxyReq: (proxyReq, req, res) => {
+      fixRequestBody(proxyReq, req, res);
       if (req.headers.authorization) {
         proxyReq.setHeader('Authorization', req.headers.authorization);
       }
@@ -110,6 +116,16 @@ const services = {
     target: process.env.LOCATION_SERVICE_URL || 'http://localhost:3006',
     changeOrigin: true,
     pathRewrite: { '^/api/location': '/api/location' }
+  },
+  '/api/reviews': {
+    target: process.env.REVIEW_SERVICE_URL || 'http://localhost:3007',
+    changeOrigin: true,
+    pathRewrite: { '^/api/reviews': '/api/reviews' },
+    onProxyReq: (proxyReq, req, res) => {
+      if (req.headers.authorization) {
+        proxyReq.setHeader('Authorization', req.headers.authorization);
+      }
+    }
   }
 };
 

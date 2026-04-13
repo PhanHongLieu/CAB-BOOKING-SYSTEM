@@ -1,9 +1,9 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User.model');
-const { ValidationError, UnauthorizedError } = require('../../shared/errors');
-const logger = require('../../shared/logger');
-const { getEventBus } = require('../../shared/eventBus');
-const { recordEventPublished } = require('../../shared/metrics');
+const { ValidationError, UnauthorizedError } = require('../../../shared/errors');
+const logger = require('../../../shared/logger');
+const { getEventBus } = require('../../../shared/eventBus');
+const { recordEventPublished } = require('../../../shared/metrics');
 
 const generateTokens = (userId) => {
   const accessToken = jwt.sign(
@@ -20,6 +20,30 @@ const generateTokens = (userId) => {
   
   return { accessToken, refreshToken };
 };
+
+const TEST_USERS = [
+  {
+    email: 'customer.review@test.local',
+    password: '123456',
+    name: 'Review Customer',
+    phone: '0900000001',
+    role: 'customer'
+  },
+  {
+    email: 'driver.review@test.local',
+    password: '123456',
+    name: 'Review Driver',
+    phone: '0900000002',
+    role: 'driver'
+  },
+  {
+    email: 'admin.review@test.local',
+    password: '123456',
+    name: 'Review Admin',
+    phone: '0900000003',
+    role: 'admin'
+  }
+];
 
 exports.register = async (req, res, next) => {
   try {
@@ -75,6 +99,7 @@ exports.register = async (req, res, next) => {
           phone: user.phone,
           role: user.role
         },
+        token: accessToken,
         accessToken,
         refreshToken
       }
@@ -124,6 +149,7 @@ exports.login = async (req, res, next) => {
           phone: user.phone,
           role: user.role
         },
+        token: accessToken,
         accessToken,
         refreshToken
       }
@@ -209,6 +235,52 @@ exports.verifyToken = async (req, res, next) => {
           role: user.role
         }
       }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.seedReviewTestUsers = async (req, res, next) => {
+  try {
+    if (process.env.NODE_ENV === 'production') {
+      throw new UnauthorizedError('This endpoint is disabled in production');
+    }
+
+    const seededUsers = [];
+
+    for (const testUser of TEST_USERS) {
+      let user = await User.findOne({ email: testUser.email });
+
+      if (!user) {
+        user = await User.create(testUser);
+      }
+
+      const { accessToken, refreshToken } = generateTokens(user._id);
+      user.refreshToken = refreshToken;
+      await user.save({ validateBeforeSave: false });
+
+      seededUsers.push({
+        user: {
+          id: user._id,
+          email: user.email,
+          name: user.name,
+          phone: user.phone,
+          role: user.role
+        },
+        login: {
+          email: testUser.email,
+          password: testUser.password
+        },
+        token: accessToken,
+        accessToken,
+        refreshToken
+      });
+    }
+
+    res.json({
+      success: true,
+      data: seededUsers
     });
   } catch (error) {
     next(error);

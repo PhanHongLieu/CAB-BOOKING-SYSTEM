@@ -11,12 +11,17 @@ const notificationSchema = new mongoose.Schema({
     enum: [
       'new_booking',
       'booking_accepted',
+      'driver_assigned',
+      'booking_status_changed',
       'booking_cancelled',
       'driver_arrived',
       'trip_started',
       'trip_completed',
+      'payment_completed',
+      'payment_failed',
       'payment_received',
-      'rating_received'
+      'rating_received',
+      'system'
     ],
     required: true
   },
@@ -44,5 +49,6 @@ const notificationSchema = new mongoose.Schema({
 
 notificationSchema.index({ userId: 1, createdAt: -1 });
 notificationSchema.index({ isRead: 1 });
+notificationSchema.index({ type: 1, createdAt: -1 });
 
 module.exports = mongoose.model('Notification', notificationSchema);

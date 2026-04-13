@@ -7,6 +7,7 @@ import CssBaseline from '@mui/material/CssBaseline';
 import App from './App';
 import store from './store/store';
 import './index.css';
+import 'bootstrap/dist/css/bootstrap.min.css';
 
 const theme = createTheme({
   palette: {
