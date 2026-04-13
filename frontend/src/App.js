@@ -8,6 +8,7 @@ import Booking from './pages/Booking';
 import BookingsList from './pages/BookingsList';
 import DriverDashboard from './pages/DriverDashboard';
 import Layout from './components/Layout';
+import Pricing from './pages/Pricing';
 
 const PrivateRoute = ({ children }) => {
   const { isAuthenticated } = useSelector((state) => state.auth);
@@ -19,6 +20,7 @@ function App() {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/pricing" element={<Pricing />} />
       <Route
         path="/"
         element={
