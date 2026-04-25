@@ -1,0 +1,29 @@
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: pricing-service-hpa
+  namespace: cab-booking-system
+spec:
+  # Liên kết HPA với cái Deployment của Pricing Service
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: pricing-service-deployment
+  
+  
+  minReplicas: 2   # Lúc vắng khách nhất cũng phải có 2 server chạy song song
+  maxReplicas: 15  # Lúc cao điểm (như trời mưa), tự động nhân bản tối đa 15 server
+
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 75 # Nếu CPU vượt mức 75% -> Tự đẻ thêm Server
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80 # Nếu RAM vượt 80% -> Tự đẻ thêm Server
