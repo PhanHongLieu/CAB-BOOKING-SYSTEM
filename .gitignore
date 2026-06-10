@@ -1,0 +1,38 @@
+# Node
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+#Do dự án đang phát triển và tiện trao đổi trong nhóm nên tạm thời vẫn push file .env lên Github
+.env
+
+# OS
+.DS_Store
+
+# Docker
+infra/.docker
+infra/*.log
+
+# Build
+dist
+build
+
+# IDE
+.vscode
+.idea
+
+# Coverage
+coverage
+
+# Logs
+logs
+*.log
+!apps/admin-dashboard/src/components/admin/logs/
+!apps/admin-dashboard/src/components/admin/logs/*.jsx
+
+# tmp
+tmp
+scripts/evidence
+# k6 token cache
+scripts/postman-truong/k6/.cache/

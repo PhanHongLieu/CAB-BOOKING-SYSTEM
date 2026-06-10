@@ -1,0 +1,162 @@
+﻿import React, { useEffect, useMemo, useState } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
+import { colors, spacing, typography } from '../../theme/tokens';
+import { IconSymbol } from '../ui/icon-symbol';
+
+type Coordinate = {
+  latitude: number;
+  longitude: number;
+  label?: string;
+};
+
+type Props = {
+  label?: string;
+  destination?: Coordinate | null;
+  driverLocation?: Coordinate | null;
+  showRoute?: boolean;
+  onLocationChange?: (coords: Coordinate) => void;
+  showCenterPickupPin?: boolean;
+};
+
+export const CustomerLiveMap: React.FC<Props> = ({
+  label,
+  destination,
+  driverLocation,
+  onLocationChange,
+  showCenterPickupPin = false
+}) => {
+  const [current, setCurrent] = useState<Coordinate | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      setError('Trình duyệt không hỗ trợ định vị');
+      return;
+    }
+
+    const watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        const next = {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude
+        };
+        setCurrent(next);
+        setError(null);
+        onLocationChange?.(next);
+      },
+      (geoError) => {
+        setError(geoError.message || 'Không lấy được vị trí hiện tại');
+      },
+      {
+        enableHighAccuracy: true,
+        maximumAge: 4000,
+        timeout: 10000
+      }
+    );
+
+    return () => navigator.geolocation.clearWatch(watchId);
+  }, [onLocationChange]);
+
+  const currentLabel = useMemo(() => {
+    if (!current) return 'Đang chờ vị trí GPS...';
+    return `${current.latitude.toFixed(6)}, ${current.longitude.toFixed(6)}`;
+  }, [current]);
+
+  const destinationLabel = useMemo(() => {
+    if (!destination) return 'Chưa chọn điểm đến';
+    return destination.label || `${destination.latitude.toFixed(6)}, ${destination.longitude.toFixed(6)}`;
+  }, [destination]);
+
+  const driverLabel = useMemo(() => {
+    if (!driverLocation) return 'Chưa có vị trí tài xế';
+    return driverLocation.label || `${driverLocation.latitude.toFixed(6)}, ${driverLocation.longitude.toFixed(6)}`;
+  }, [driverLocation]);
+
+  return (
+    <View style={styles.map}>
+      {showCenterPickupPin ? (
+        <View pointerEvents="none" style={styles.pickupPinWrap}>
+          <View style={styles.pickupPin}>
+            <IconSymbol name="pin.fill" size={18} color={colors.brand700} />
+          </View>
+          <View style={styles.pickupPinDot} />
+        </View>
+      ) : null}
+      <Text style={styles.title}>{label || 'Bản đồ vị trí thực tế'}</Text>
+      <View style={styles.block}>
+        <Text style={styles.kv}>Điểm đón: Vị trí hiện tại</Text>
+        <Text style={styles.value}>Tọa độ: {currentLabel}</Text>
+      </View>
+      <View style={styles.block}>
+        <Text style={styles.kv}>Điểm đến:</Text>
+        <Text style={styles.value}>{destinationLabel}</Text>
+        {destination ? (
+          <Text style={styles.kv}>
+            Tọa độ: {destination.latitude.toFixed(6)}, {destination.longitude.toFixed(6)}
+          </Text>
+        ) : null}
+      </View>
+      <View style={styles.block}>
+        <Text style={styles.kv}>Tài xế:</Text>
+        <Text style={styles.value}>{driverLabel}</Text>
+      </View>
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  map: {
+    flex: 1,
+    backgroundColor: '#EEF1F4',
+    padding: spacing.md,
+    gap: spacing.sm
+  },
+  title: {
+    ...typography.body,
+    color: colors.text
+  },
+  block: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs
+  },
+  kv: {
+    ...typography.caption,
+    color: colors.muted
+  },
+  value: {
+    ...typography.body,
+    color: colors.text
+  },
+  error: {
+    ...typography.caption,
+    color: '#C53030'
+  },
+  pickupPinWrap: {
+    position: 'absolute',
+    left: '50%',
+    top: '50%',
+    marginLeft: -14,
+    marginTop: -34,
+    alignItems: 'center'
+  },
+  pickupPin: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.brand100
+  },
+  pickupPinDot: {
+    marginTop: 2,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.brand700
+  }
+});

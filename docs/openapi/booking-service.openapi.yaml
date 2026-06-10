@@ -1,0 +1,265 @@
+openapi: 3.1.0
+info:
+  title: Booking Service API
+  version: 1.1.0
+  description: |
+    Booking service for create/list/get/cancel booking.
+    P0 upgrade:
+    - status starts at REQUESTED
+    - supports `drop` + `distance_km` + idempotency
+    - emits `ride.created` and rubric compatibility event `ride_events` (ride_requested)
+servers:
+  - url: http://localhost:3003
+    description: Direct booking-service
+  - url: http://localhost:3000
+    description: API Gateway (prefix /v1/bookings)
+components:
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      schema:
+        type: string
+      description: |
+        Optional idempotency key for booking create.
+        Same key + same request body returns previous result.
+    UserIdQuery:
+      name: user_id
+      in: query
+      required: false
+      schema:
+        type: string
+      description: Filter bookings by user id.
+  schemas:
+    LatLng:
+      type: object
+      required: [lat, lng]
+      properties:
+        lat:
+          type: number
+          minimum: -90
+          maximum: 90
+        lng:
+          type: number
+          minimum: -180
+          maximum: 180
+    PriceSnapshot:
+      type: object
+      properties:
+        quoteId: { type: string }
+        estimatedFare: { type: number }
+        currency: { type: string }
+        distanceKm: { type: number }
+        durationMin: { type: number }
+    Booking:
+      type: object
+      required: [bookingId, rideId, pickup, dropoff, vehicleType, status, createdAt]
+      properties:
+        bookingId: { type: string }
+        rideId: { type: string }
+        userId: { type: [string, 'null'] }
+        pickup: { $ref: '#/components/schemas/LatLng' }
+        dropoff: { $ref: '#/components/schemas/LatLng' }
+        vehicleType:
+          type: string
+          enum: [BIKE, CAR, SUV]
+        distanceKm: { type: [number, 'null'] }
+        etaMinutes: { type: [integer, 'null'] }
+        priceSnapshot: { $ref: '#/components/schemas/PriceSnapshot' }
+        status:
+          type: string
+          enum: [REQUESTED, CANCELLED]
+        createdAt:
+          type: string
+          format: date-time
+        canceledAt:
+          type: [string, 'null']
+          format: date-time
+    PublishedEvent:
+      type: object
+      properties:
+        topic: { type: string }
+        eventId: { type: string }
+        queued: { type: boolean }
+    AdditionalEvent:
+      type: object
+      properties:
+        topic: { type: string }
+        eventId: { type: string }
+        eventType: { type: string }
+        queued: { type: boolean }
+    CreateBookingRequest:
+      type: object
+      required: [pickup]
+      properties:
+        user_id:
+          type: string
+          description: optional override user id
+        pickup:
+          $ref: '#/components/schemas/LatLng'
+        drop:
+          $ref: '#/components/schemas/LatLng'
+        dropoff:
+          $ref: '#/components/schemas/LatLng'
+        distance_km:
+          type: number
+          minimum: 0
+        traffic_level:
+          type: number
+          minimum: 0
+          maximum: 1
+        vehicleType:
+          type: string
+          enum: [BIKE, CAR, SUV]
+          default: CAR
+        payment_method:
+          type: string
+          enum: [CASH, VIETQR, PAYOS]
+    ErrorPayload:
+      type: object
+      properties:
+        error: { type: string }
+        code: { type: string }
+        details: {}
+paths:
+  /health:
+    get:
+      summary: Health check
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+  /v1/bookings:
+    get:
+      summary: List bookings
+      parameters:
+        - $ref: '#/components/parameters/UserIdQuery'
+      responses:
+        '200':
+          description: List bookings
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Booking'
+    post:
+      summary: Create booking
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBookingRequest'
+            examples:
+              rubricStyle:
+                value:
+                  pickup: { lat: 10.76, lng: 106.66 }
+                  drop: { lat: 10.77, lng: 106.70 }
+                  distance_km: 5
+                  traffic_level: 0.5
+                  vehicleType: CAR
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  booking:
+                    $ref: '#/components/schemas/Booking'
+                  publishedEvent:
+                    $ref: '#/components/schemas/PublishedEvent'
+                  additionalEvents:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AdditionalEvent'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorPayload' }
+              examples:
+                missingPickup:
+                  value: { error: 'pickup is required' }
+                invalidPayment:
+                  value: { error: 'Invalid payment method' }
+        '409':
+          description: Idempotency conflict / in-progress
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorPayload' }
+              examples:
+                conflict:
+                  value:
+                    error: 'Idempotency-Key payload mismatch'
+                    code: 'IDEMPOTENCY_KEY_CONFLICT'
+        '422':
+          description: Schema type validation error
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorPayload' }
+              examples:
+                invalidLatLng:
+                  value:
+                    error: 'Validation error from schema'
+  /v1/bookings/{id}:
+    get:
+      summary: Get booking by id
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Booking detail
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Booking'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorPayload' }
+  /v1/bookings/{id}/cancel:
+    post:
+      summary: Cancel booking
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Booking cancelled
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  booking:
+                    $ref: '#/components/schemas/Booking'
+                  publishedEvent:
+                    $ref: '#/components/schemas/PublishedEvent'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorPayload' }

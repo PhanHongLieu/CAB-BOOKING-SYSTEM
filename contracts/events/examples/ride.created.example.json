@@ -1,0 +1,16 @@
+{
+  "eventId": "evt_ride_created_001",
+  "traceId": "trace_abc123",
+  "occurredAt": "2026-01-01T10:00:00.000Z",
+  "type": "RideCreated",
+  "version": 1,
+  "payload": {
+    "rideId": "ride_123",
+    "bookingId": "bk_123",
+    "pickup": { "lat": 10.7, "lng": 106.6, "address": "District 1, Ho Chi Minh City" },
+    "dropoff": { "lat": 10.8, "lng": 106.7, "address": "District 7, Ho Chi Minh City" },
+    "pricing": { "estimatedFare": 125000, "currency": "VND" },
+    "vehicleType": "STANDARD",
+    "timestamp": "2026-01-01T10:00:00.000Z"
+  }
+}
